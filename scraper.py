@@ -4,3 +4,4 @@ from bs4 import BeautifulSoup #allows python to read and search the websites HTM
 url = "https://www.winners.mu/"
 response = requests.get(url)
 print(response.status_code)
+print(response.text[:500])
