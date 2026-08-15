@@ -10,3 +10,6 @@ from bs4 import BeautifulSoup
 soup = BeautifulSoup(response.text, "html.parser")
 
 print(soup.title)
+price = soup.find("span", class_="price actual-price")
+
+print(price.text)
