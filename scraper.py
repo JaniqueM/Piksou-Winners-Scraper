@@ -7,26 +7,30 @@ print(response.status_code)
 
 soup = BeautifulSoup(response.text, "html.parser")
 
-product_text = soup.find(string=lambda text: text and "DANESITA" in text.upper())
+products = soup.find_all("h2", class_="product-title")
 
-print(product_text.parent.parent.parent)
+print("Number of products:", len(products))
 
-product_title = soup.find("h2", class_="product-title")
+for product_title in products:
 
-product = product_title.parent
+    product = product_title.parent
 
-name = product_title.get_text(strip=True)
+    name = product_title.get_text(strip=True)
 
-sku = product.find("div", class_="sku").get_text(strip=True)
+    sku_element = product.find("div", class_="sku")
+    sku = sku_element.get_text(strip=True) if sku_element else "N/A"
 
-old_price = product.find("span", class_="old-price").get_text(strip=True)
+    old_price_element = product.find("span", class_="old-price")
+    old_price = old_price_element.get_text(strip=True) if old_price_element else "N/A"
 
-actual_price = product.find("span", class_="actual-price").get_text(strip=True)
+    actual_price_element = product.find("span", class_="actual-price")
+    actual_price = actual_price_element.get_text(strip=True) if actual_price_element else "N/A"
 
-link = product_title.find("a")["href"]
+    link = product_title.find("a")["href"]
 
-print("Name:", name)
-print("SKU:", sku)
-print("Old price:", old_price)
-print("Actual price:", actual_price)
-print("Link:", link)
+    print("--------------------")
+    print("Name:", name)
+    print("SKU:", sku)
+    print("Old price:", old_price)
+    print("Actual price:", actual_price)
+    print("Link:", link)
