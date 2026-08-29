@@ -3,7 +3,200 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
 BASE_URL = "https://www.winners.mu"
-CATEGORY_URL = urljoin(BASE_URL, "/epicerie")
+CATEGORY_PATHS = [
+    "/interior-car",
+    "/auto-exterieur",
+    "/auto-interieur",
+    "/entretien-auto",
+    "/lubrifiant",
+    "/auto--velo",
+
+    "/boucherie",
+    "/boucherie-ls",
+    "/boucherie-traditionelle",
+
+    "/boulangerie",
+    "/pain-ordinaire",
+    "/pain-speciaux",
+    "/viennoiserie",
+
+    "/bricomaisonjardin",
+    "/amenagement-maison",
+    "/brico-equipement",
+    "/jardinerie",
+
+    "/cartes-telephonie",
+    "/cartes-prepayes",
+
+    "/charcuterie",
+    "/charcuterie-preemballee",
+    "/conservesverrine",
+    "/jambon-scisson-sec",
+    "/traiteur-ls",
+
+    "/cremerie",
+    "/beurre",
+    "/fromages-libre-service-2",
+    "/margarine",
+    "/oeufs",
+
+    "/dph",
+    "/beaute",
+    "/capillaires",
+    "/droguerie",
+    "/entretien",
+    "/hygiene-papier",
+    "/hygiene-parfumerie",
+    "/lavage",
+    "/parapharmacie",
+
+    "/electro-menager",
+    "/cuisson",
+    "/encastrable",
+    "/entretien-du-linge",
+    "/hygiene-beaute",
+    "/petit-dejeuner-2",
+    "/preparation-alimentaire",
+    "/rasage-epilation",
+    "/soin-du-linge",
+
+    "/epicerie",
+    "/aliments-pour-animaux",
+    "/aliments-pour-enfants",
+    "/bien-etre-dietetique-bio",
+    "/biscuiterie-sucree",
+    "/cafes-chicorees",
+    "/cereales",
+    "/chocolat",
+    "/condiments-et-sauces",
+    "/fruits-et-legumes",
+    "/fleurs-plantes",
+    "/fruits-frais",
+    "/fruits-sec",
+    "/legumes-frais",
+
+    "/souk",
+    "/glaces",
+    "/detente",
+    "/specialites-indiv-a-partager",
+    "/vrac",
+
+    "/jouets-loisirs",
+    "/camping",
+    "/jouet-bebe",
+    "/jouet-dete",
+    "/jouet-fille",
+    "/jouet-garcon",
+    "/jouet-mixte",
+    "/peche",
+    "/sport-dequipe",
+
+    "/librairiepapeteriebagage",
+    "/bagage",
+    "/librairie",
+    "/papeterie",
+
+    "/liquide",
+    "/alcools-de-grains",
+    "/alcools-et-spiritueux",
+    "/aperitifs",
+    "/bieres-et-cidres",
+    "/boissons-sans-alcool",
+    "/champagnes-mousseux",
+    "/eaux",
+    "/vins-courant",
+
+    "/menage",
+    "/articles-menagers",
+    "/cadeaux",
+    "/couverts-de-table",
+    "/cuisson-directe",
+    "/cuisson-indirecte",
+    "/decoration",
+    "/entretien-2",
+    "/petit-dejeuner",
+
+    "/micro-bureautique",
+    "/calculatrice-organiseur",
+    "/consolejeux",
+    "/logiciel",
+    "/micro-informatique",
+    "/support-enregistrement",
+    "/telephonie",
+
+    "/patisserie",
+    "/biscuits",
+    "/cake",
+    "/deserts",
+    "/entremets",
+    "/fete",
+    "/gateau-assortis",
+    "/genoise",
+    "/genoise-vegetarian",
+
+    "/poissonnerie",
+    "/mollusquescrustaces",
+    "/poissons-frais",
+    "/poissonscrustaces-surgele",
+
+    "/porc",
+    "/porc-ls",
+    "/porc-traditionel",
+
+    "/saurisserie",
+    "/marinades",
+    "/poissons-fumessales",
+    "/produits-canapes",
+    "/stand",
+    "/charcuterie-coupe",
+    "/fromage-coupe",
+
+    "/surgeles",
+    "/fruit-et-jus-de-fruits",
+    "/garnitures-de-p-de-terre",
+    "/legumes-surgeles",
+    "/patisserie-et-boule-pate",
+    "/plats-cuisines-surgeles",
+    "/poissons-fde-merescarg",
+    "/potages-et-entrees-surgeles",
+    "/traiteur-surgeles",
+
+    "/tabac",
+    "/tabac-2",
+
+    "/textile",
+    "/accessoires-femmes",
+    "/accessoires-hommes",
+    "/bijoux",
+    "/chapellerie",
+    "/chaussure",
+    "/confection-bebe",
+    "/confection-enfant",
+    "/confection-femme",
+
+    "/tvvideohifison",
+    "/hifison",
+    "/televiseur",
+    "/video",
+
+    "/ultra-frais",
+    "/cremes-fraiches",
+    "/desserts",
+    "/fromages-frais",
+    "/jus-et-nectar-fruits-frais",
+    "/lait-frais",
+    "/sauce-frais",
+    "/yaourts",
+
+    "/volailles",
+    "/volailles-ls",
+    "/volailles-traditionelle",
+]
+
+CATEGORY_URLS = [
+    urljoin(BASE_URL, path)
+    for path in CATEGORY_PATHS
+]
 
 headers = {
     "User-Agent": (
@@ -18,44 +211,79 @@ headers = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+test_url = "https://www.winners.mu/epicerie?pagenumber=2"
+
 response = requests.get(
-    CATEGORY_URL,
+    test_url,
     headers=headers,
     timeout=30
 )
 
 print("Status:", response.status_code)
-print("Length:", len(response.text))
 
 soup = BeautifulSoup(response.text, "html.parser")
 
 products = soup.select(".product-item")
 
-print("Products found:", len(products))
-print("\nPRODUCTS:\n")
+print("Products on page 2:", len(products))
 
-for product in products:
+for category_url in CATEGORY_URLS:
 
-    product_id = product.get("data-productid")
+    print("\n" + "=" * 70)
+    print("CATEGORY:", category_url)
+    print("=" * 70)
 
-    name_element = product.select_one(".product-title a")
-    sku_element = product.select_one(".sku")
-    price_element = product.select_one(".actual-price")
-
-    name = name_element.get_text(strip=True) if name_element else None
-
-    product_url = (
-        urljoin(BASE_URL, name_element.get("href"))
-        if name_element and name_element.get("href")
-        else None
+    response = requests.get(
+        category_url,
+        headers=headers,
+        timeout=30
     )
 
-    sku = sku_element.get_text(strip=True) if sku_element else None
-    price = price_element.get_text(strip=True) if price_element else None
+    print("Status:", response.status_code)
+    print("Length:", len(response.text))
 
-    print("Product ID:", product_id)
-    print("Name:", name)
-    print("SKU:", sku)
-    print("Price:", price)
-    print("URL:", product_url)
-    print("-" * 50)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    products = soup.select(".product-item")
+
+    print("Products found:", len(products))
+
+    for product in products:
+
+        product_id = product.get("data-productid")
+
+        name_element = product.select_one(".product-title a")
+        sku_element = product.select_one(".sku")
+        price_element = product.select_one(".actual-price")
+
+        name = (
+            name_element.get_text(strip=True)
+            if name_element
+            else None
+        )
+
+        product_url = (
+            urljoin(BASE_URL, name_element.get("href"))
+            if name_element and name_element.get("href")
+            else None
+        )
+
+        sku = (
+            sku_element.get_text(strip=True)
+            if sku_element
+            else None
+        )
+
+        price = (
+            price_element.get_text(strip=True)
+            if price_element
+            else None
+        )
+
+        print("Product ID:", product_id)
+        print("Name:", name)
+        print("SKU:", sku)
+        print("Price:", price)
+        print("URL:", product_url)
+        print("-" * 50)
+        
