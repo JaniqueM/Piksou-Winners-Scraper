@@ -211,21 +211,6 @@ headers = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-test_url = "https://www.winners.mu/epicerie?pagenumber=2"
-
-response = requests.get(
-    test_url,
-    headers=headers,
-    timeout=30
-)
-
-print("Status:", response.status_code)
-
-soup = BeautifulSoup(response.text, "html.parser")
-
-products = soup.select(".product-item")
-
-print("Products on page 2:", len(products))
 
 for category_url in CATEGORY_URLS:
 
@@ -233,57 +218,70 @@ for category_url in CATEGORY_URLS:
     print("CATEGORY:", category_url)
     print("=" * 70)
 
-    response = requests.get(
-        category_url,
-        headers=headers,
-        timeout=30
-    )
+    page_number = 1
 
-    print("Status:", response.status_code)
-    print("Length:", len(response.text))
+    while True:
 
-    soup = BeautifulSoup(response.text, "html.parser")
+        page_url = f"{category_url}?pagenumber={page_number}"
 
-    products = soup.select(".product-item")
+        print("\nPAGE:", page_number)
+        print("URL:", page_url)
 
-    print("Products found:", len(products))
-
-    for product in products:
-
-        product_id = product.get("data-productid")
-
-        name_element = product.select_one(".product-title a")
-        sku_element = product.select_one(".sku")
-        price_element = product.select_one(".actual-price")
-
-        name = (
-            name_element.get_text(strip=True)
-            if name_element
-            else None
+        response = requests.get(
+            page_url,
+            headers=headers,
+            timeout=60
         )
 
-        product_url = (
-            urljoin(BASE_URL, name_element.get("href"))
-            if name_element and name_element.get("href")
-            else None
-        )
+        print("Status:", response.status_code)
 
-        sku = (
-            sku_element.get_text(strip=True)
-            if sku_element
-            else None
-        )
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        price = (
-            price_element.get_text(strip=True)
-            if price_element
-            else None
-        )
+        products = soup.select(".product-item")
 
-        print("Product ID:", product_id)
-        print("Name:", name)
-        print("SKU:", sku)
-        print("Price:", price)
-        print("URL:", product_url)
-        print("-" * 50)
-        
+        print("Products found:", len(products))
+
+        # Stop if there are no products on this page
+        if not products:
+            break
+
+        for product in products:
+
+            product_id = product.get("data-productid")
+
+            name_element = product.select_one(".product-title a")
+            sku_element = product.select_one(".sku")
+            price_element = product.select_one(".actual-price")
+
+            name = (
+                name_element.get_text(strip=True)
+                if name_element
+                else None
+            )
+
+            product_url = (
+                urljoin(BASE_URL, name_element.get("href"))
+                if name_element and name_element.get("href")
+                else None
+            )
+
+            sku = (
+                sku_element.get_text(strip=True)
+                if sku_element
+                else None
+            )
+
+            price = (
+                price_element.get_text(strip=True)
+                if price_element
+                else None
+            )
+
+            print("Product ID:", product_id)
+            print("Name:", name)
+            print("SKU:", sku)
+            print("Price:", price)
+            print("URL:", product_url)
+            print("-" * 50)
+
+        page_number += 1
