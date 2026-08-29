@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import csv
 
+
 BASE_URL = "https://www.winners.mu"
 
 CATEGORY_PATHS = [
@@ -215,8 +216,9 @@ headers = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-
 all_products = []
+
+seen_product_ids = set()
 
 for category_url in CATEGORY_URLS:
 
@@ -237,50 +239,75 @@ for category_url in CATEGORY_URLS:
             response = requests.get(
                 page_url,
                 headers=headers,
-                timeout=60
+                timeout=20
             )
 
         except requests.exceptions.Timeout:
-            print("Request timed out. Moving to next category.")
+            print("Request timed out. Skipping this page.")
+            break
+
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
             break
 
         print("Status:", response.status_code)
 
+    
+        if response.status_code != 200:
+            print("Page request failed. Moving to next category.")
+            break
+
+
         soup = BeautifulSoup(response.text, "html.parser")
+
 
         products = soup.select(".product-item")
 
         print("Products found:", len(products))
 
+       
         if not products:
             print("No more products. Moving to next category.")
             break
-
 
         for product in products:
 
             product_id = product.get("data-productid")
 
+            if product_id in seen_product_ids:
+                print("Duplicate product skipped:", product_id)
+                continue
+
+            seen_product_ids.add(product_id)
+
             name_element = product.select_one(".product-title a")
             sku_element = product.select_one(".sku")
             price_element = product.select_one(".actual-price")
+
 
             name = (
                 name_element.get_text(strip=True)
                 if name_element
                 else None
             )
+
             product_url = (
-                urljoin(BASE_URL, name_element.get("href"))
+                urljoin(
+                    BASE_URL,
+                    name_element.get("href")
+                )
                 if name_element and name_element.get("href")
                 else None
             )
+
 
             sku = (
                 sku_element.get_text(strip=True)
                 if sku_element
                 else None
             )
+
+
             price = (
                 price_element.get_text(strip=True)
                 if price_element
@@ -296,8 +323,6 @@ for category_url in CATEGORY_URLS:
                 "category": category_url
             })
 
-
-            # Print product information
             print("Product ID:", product_id)
             print("Name:", name)
             print("SKU:", sku)
@@ -306,4 +331,3 @@ for category_url in CATEGORY_URLS:
             print("-" * 50)
 
         page += 1
-
