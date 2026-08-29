@@ -239,7 +239,7 @@ for category_url in CATEGORY_URLS:
             response = requests.get(
                 page_url,
                 headers=headers,
-                timeout=20
+                timeout=10
             )
 
         except requests.exceptions.Timeout:
