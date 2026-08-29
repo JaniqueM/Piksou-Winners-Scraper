@@ -1,8 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+import csv
 
 BASE_URL = "https://www.winners.mu"
+
 CATEGORY_PATHS = [
     "/interior-car",
     "/auto-exterieur",
@@ -193,10 +195,12 @@ CATEGORY_PATHS = [
     "/volailles-traditionelle",
 ]
 
+
 CATEGORY_URLS = [
     urljoin(BASE_URL, path)
     for path in CATEGORY_PATHS
 ]
+
 
 headers = {
     "User-Agent": (
@@ -212,26 +216,33 @@ headers = {
 }
 
 
+all_products = []
+
 for category_url in CATEGORY_URLS:
 
     print("\n" + "=" * 70)
     print("CATEGORY:", category_url)
     print("=" * 70)
 
-    page_number = 1
+    page = 1
 
     while True:
 
-        page_url = f"{category_url}?pagenumber={page_number}"
+        page_url = f"{category_url}?pagenumber={page}"
 
-        print("\nPAGE:", page_number)
+        print("\nPAGE:", page)
         print("URL:", page_url)
 
-        response = requests.get(
-            page_url,
-            headers=headers,
-            timeout=60
-        )
+        try:
+            response = requests.get(
+                page_url,
+                headers=headers,
+                timeout=60
+            )
+
+        except requests.exceptions.Timeout:
+            print("Request timed out. Moving to next category.")
+            break
 
         print("Status:", response.status_code)
 
@@ -241,9 +252,10 @@ for category_url in CATEGORY_URLS:
 
         print("Products found:", len(products))
 
-        # Stop if there are no products on this page
         if not products:
+            print("No more products. Moving to next category.")
             break
+
 
         for product in products:
 
@@ -258,7 +270,6 @@ for category_url in CATEGORY_URLS:
                 if name_element
                 else None
             )
-
             product_url = (
                 urljoin(BASE_URL, name_element.get("href"))
                 if name_element and name_element.get("href")
@@ -270,13 +281,23 @@ for category_url in CATEGORY_URLS:
                 if sku_element
                 else None
             )
-
             price = (
                 price_element.get_text(strip=True)
                 if price_element
                 else None
             )
 
+            all_products.append({
+                "product_id": product_id,
+                "name": name,
+                "sku": sku,
+                "price": price,
+                "url": product_url,
+                "category": category_url
+            })
+
+
+            # Print product information
             print("Product ID:", product_id)
             print("Name:", name)
             print("SKU:", sku)
@@ -284,4 +305,5 @@ for category_url in CATEGORY_URLS:
             print("URL:", product_url)
             print("-" * 50)
 
-        page_number += 1
+        page += 1
+
