@@ -331,3 +331,37 @@ for category_url in CATEGORY_URLS:
             print("-" * 50)
 
         page += 1
+
+csv_filename = "winners_products.csv"
+
+with open(
+    csv_filename,
+    "w",
+    newline="",
+    encoding="utf-8-sig"
+) as csvfile:
+
+    fieldnames = [
+        "product_id",
+        "name",
+        "sku",
+        "price",
+        "url",
+        "category"
+    ]
+
+    writer = csv.DictWriter(
+        csvfile,
+        fieldnames=fieldnames
+    )
+
+    writer.writeheader()
+
+    writer.writerows(all_products)
+
+print("\n" + "=" * 70)
+print("SCRAPING COMPLETE")
+print("=" * 70)
+
+print("Total unique products:", len(all_products))
+print("CSV file:", csv_filename)
