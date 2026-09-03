@@ -69,29 +69,25 @@ Save products to CSV
 End
 
 Installation
-1. Clone the repository
-git clone <your-repository-url>
+1. Clone the repository using: 
+git clone <repository-url>
 cd Piksou
 
-2. Create a virtual environment
+2. Create a virtual environment:
 python -m venv .venv
 
-3. Activate the virtual environment
-Windows PowerShell:
+3. Activate the virtual environment:
 .venv\Scripts\Activate.ps1
 
-4. Install the required libraries
+4. Install the libraries:
 pip install requests beautifulsoup4
 
-Running the Scraper
-Once the virtual environment is activated, run:
-
+How to Run
+- After installing everything, run:
 python category_test.py
 
-The scraper will begin processing the categories and display its progress in the terminal.
-
-Output
-After the scraping process is complete, the data is saved as:
+The scraper will start collecting products and show its progress in the terminal.
+- When it finishes, the results will be saved in:
 winners_products.csv
 
 The CSV contains the following columns:
