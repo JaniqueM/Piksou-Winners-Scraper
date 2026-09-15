@@ -16,6 +16,17 @@ class ScraperEngine:
         # Build a page URL using the configured pagination format.
         return f"{base_url}?pagenumber={page}"
 
+    def add_products(self, products):
+        # Add products while preventing duplicates.
+        for product in products:
+            product_id = product.product_id
+
+            if product_id in self.seen_product_ids:
+                continue
+
+            self.seen_product_ids.add(product_id)
+            self.products.append(product)
+
     def scrape_pages(self, base_url, extract_products, start_page=1):
         # Loop through pages until no more products are found.
         page = start_page
@@ -33,7 +44,7 @@ class ScraperEngine:
             if not products:
                 break
 
-            self.products.extend(products)
+            self.add_products(products)
 
             print(f"Fetched page {page}: {page_url}")
 
