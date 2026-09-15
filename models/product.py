@@ -1,3 +1,4 @@
+#Provides product details that we want the scraper to extract - will apply to any website being scrapped 
 class Product:
     def __init__(
         self,
