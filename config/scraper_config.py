@@ -6,8 +6,10 @@ class ScraperConfig:
         self,
         base_url,
         page_url_template="?pagenumber={page}",
-        start_page=1
+        start_page=1,
+        max_pages=100
     ):
         self.base_url = base_url
         self.page_url_template = page_url_template
         self.start_page = start_page
+        self.max_pages = max_pages
