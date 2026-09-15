@@ -5,19 +5,42 @@ from engine.fetcher import Fetcher
 from engine.scraper import ScraperEngine
 from config.scraper_config import ScraperConfig
 from exporters.csv_exporter import CSVExporter
+from extractors.winners_extractor import WinnersExtractor
 
 
 def main():
 
-    # Configure the scraper.
+    category_paths = [
+        "/interior-car",
+        "/boucherie",
+        "/boulangerie",
+        "/bricomaisonjardin",
+        "/cremerie",
+        "/epicerie",
+        "/jouets-loisirs",
+        "/librairiepapeteriebagage",
+        "/liquide",
+        "/menage",
+        "/micro-bureautique",
+        "/patisserie",
+        "/poissonnerie",
+        "/porc",
+        "/surgeles",
+        "/tabac",
+        "/textile",
+        "/tvvideohifison",
+        "/ultra-frais",
+        "/volailles"
+    ]
+
     config = ScraperConfig(
         base_url="https://www.winners.mu",
+        category_paths=category_paths,
         page_url_template="?pagenumber={page}",
         start_page=1,
-        max_pages=100
+        max_pages=5
     )
 
-    # Create the HTTP fetcher.
     fetcher = Fetcher(
         headers={
             "User-Agent": "Mozilla/5.0"
@@ -25,21 +48,21 @@ def main():
         timeout=10
     )
 
-    # Create the main scraping engine.
     scraper = ScraperEngine(
         fetcher=fetcher,
         config=config
     )
 
-    # Create the CSV exporter.
+    extractor = WinnersExtractor()
+
     exporter = CSVExporter()
 
-    # The website-specific extractor will be added here.
-    # We will create the Winners extractor next.
+    products = scraper.scrape(extractor)
 
-    # products = scraper.scrape_pages(extractor)
-
-    # exporter.export(products, "winners_products.csv")
+    exporter.export(
+        products,
+        "winners_products.csv"
+    )
 
 
 if __name__ == "__main__":

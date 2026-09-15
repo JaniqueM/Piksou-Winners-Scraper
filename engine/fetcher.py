@@ -1,13 +1,20 @@
-#Handles HTTP requests for the scraper engine, including headers, timeouts, and request errors.git 
+# Reusable HTTP fetcher responsible for sending requests
+# and handling timeouts and request errors.
+
+
 import requests
 
+
 class Fetcher:
-    def __init__(self, headers=None, timeout=10):
+
+    def __init__(self, headers=None, timeout=30):
         self.headers = headers or {}
         self.timeout = timeout
 
     def get(self, url):
+
         try:
+
             response = requests.get(
                 url,
                 headers=self.headers,
@@ -18,7 +25,15 @@ class Fetcher:
 
             return response
 
+        except requests.exceptions.Timeout:
+
+            print(f"Request timed out: {url}")
+
+            return None
+
         except requests.exceptions.RequestException as e:
+
             print(f"Request failed: {url}")
             print(f"Error: {e}")
+
             return None
