@@ -6,10 +6,6 @@ import requests
 import pymupdf
 
 
-# ============================================================
-# CONFIG
-# ============================================================
-
 BROCHURE_URL = (
     "https://www.king-savers.com/wp-content/uploads/2026/07/"
     "KS-EOM-JUL-2026_LR-compressed.pdf"
@@ -20,21 +16,12 @@ BROCHURE_PATH = DATA_DIR / "kingsavers_brochure.pdf"
 OUTPUT_FILE = DATA_DIR / "kingsavers_promotions.csv"
 
 
-# ============================================================
-# DOWNLOAD BROCHURE
-# ============================================================
-
 def download_brochure():
-
     DATA_DIR.mkdir(exist_ok=True)
 
     print("Downloading King Savers brochure...")
 
-    response = requests.get(
-        BROCHURE_URL,
-        timeout=60
-    )
-
+    response = requests.get(BROCHURE_URL, timeout=60)
     response.raise_for_status()
 
     with open(BROCHURE_PATH, "wb") as file:
@@ -43,12 +30,7 @@ def download_brochure():
     print(f"Brochure saved to: {BROCHURE_PATH}")
 
 
-# ============================================================
-# EXTRACT TEXT FROM ALL PAGES
-# ============================================================
-
 def extract_pages():
-
     print("Opening brochure...")
 
     document = pymupdf.open(BROCHURE_PATH)
@@ -56,7 +38,6 @@ def extract_pages():
     pages = []
 
     for page_number, page in enumerate(document, start=1):
-
         text = page.get_text("text")
 
         pages.append({
@@ -64,45 +45,91 @@ def extract_pages():
             "text": text
         })
 
-        print(
-            f"Read page {page_number}/{len(document)}"
-        )
+        print(f"Read page {page_number}/{len(document)}")
 
     document.close()
 
     return pages
 
 
-# ============================================================
-# PRICE EXTRACTION
-# ============================================================
-
-def extract_prices(text):
-
-    pattern = r"Rs\s*([0-9]+(?:\.[0-9]{1,2})?)"
-
-    matches = re.findall(
-        pattern,
-        text,
+def is_price(line):
+    return re.match(
+        r"^Rs\s*[0-9]+(?:\.[0-9]{1,2})?$",
+        line,
         re.IGNORECASE
     )
 
-    prices = []
 
-    for match in matches:
+def get_price(line):
+    match = re.match(
+        r"^Rs\s*([0-9]+(?:\.[0-9]{1,2})?)$",
+        line,
+        re.IGNORECASE
+    )
 
-        try:
-            prices.append(float(match))
+    if match:
+        return float(match.group(1))
 
-        except ValueError:
+    return None
+
+
+def is_ignored_line(line):
+    ignored_patterns = [
+        r"^Vat\s+",
+        r"^PROMO:",
+        r"^OFFRE VALABLE",
+        r"^CERTAINS PRODUITS",
+        r"^PAS DISPONIBLES",
+        r"^POUR NOS HORAIRES",
+        r"^D['’]OUVERTURE",
+        r"^VISITEZ NOTRE PAGE",
+        r"^TEL:",
+        r"^BEAU VALLON",
+        r"^BO['’]VALON MALL",
+        r"^GOODLANDS",
+        r"^VIP VILLAGE",
+        r"^OPP HURRY",
+        r"^NEW GROVE",
+        r"^LA CROISÉE",
+        r"^ROYAL ROAD",
+        r"^SURINAM",
+        r"^BONNE TERRE",
+        r"^VACOAS",
+        r"^THU ",
+        r"^FRI ",
+        r"^SAT ",
+        r"^[0-9]+$",
+    ]
+
+    for pattern in ignored_patterns:
+        if re.search(pattern, line, re.IGNORECASE):
+            return True
+
+    return False
+
+    for pattern in ignored_patterns:
+        if re.search(pattern, line, re.IGNORECASE):
+            return True
+
+    return False
+
+
+def clean_product_name(lines):
+    cleaned = []
+
+    for line in lines:
+        line = line.strip()
+
+        if not line:
             continue
 
-    return prices
+        if is_ignored_line(line):
+            continue
 
+        cleaned.append(line)
 
-# ============================================================
-# FIND PROMOTIONS
-# ============================================================
+    return " ".join(cleaned)
+
 
 def extract_promotions_from_page(page_number, text):
 
@@ -114,106 +141,70 @@ def extract_promotions_from_page(page_number, text):
 
     promotions = []
 
+    product_lines = []
+
     i = 0
 
     while i < len(lines):
 
         line = lines[i]
 
-        # Look for a price
-        price_match = re.match(
-            r"Rs\s*([0-9]+(?:\.[0-9]{1,2})?)",
-            line,
-            re.IGNORECASE
-        )
+        # Ignore general brochure information
+        if is_ignored_line(line):
+            i += 1
+            continue
 
-        if price_match:
+        # We found a price
+        if is_price(line):
 
-            current_price = float(
-                price_match.group(1)
-            )
+            current_price = get_price(line)
 
-            # Look ahead for another price
-            next_price = None
+            # Check if the next line is an old price
+            old_price = None
 
-            if i + 1 < len(lines):
+            if i + 1 < len(lines) and is_price(lines[i + 1]):
+                possible_old_price = get_price(lines[i + 1])
 
-                next_match = re.match(
-                    r"Rs\s*([0-9]+(?:\.[0-9]{1,2})?)",
-                    lines[i + 1],
-                    re.IGNORECASE
-                )
+                if possible_old_price > current_price:
+                    old_price = possible_old_price
+                    i += 1
 
-                if next_match:
-                    next_price = float(
-                        next_match.group(1)
+            product_name = clean_product_name(product_lines)
+
+            if product_name:
+
+                discount = None
+
+                if old_price:
+                    discount = round(
+                        ((old_price - current_price) / old_price) * 100,
+                        2
                     )
-
-            # If two prices exist, assume:
-            # first = promotional price
-            # second = original price
-
-            if next_price and next_price > current_price:
-
-                product_name = "Unknown Product"
-
-                # Look backwards for product name
-                previous_lines = []
-
-                j = i - 1
-
-                while j >= 0 and len(previous_lines) < 5:
-
-                    candidate = lines[j]
-
-                    if not re.match(
-                        r"Rs\s*",
-                        candidate,
-                        re.IGNORECASE
-                    ):
-
-                        previous_lines.append(
-                            candidate
-                        )
-
-                    j -= 1
-
-                if previous_lines:
-
-                    product_name = " ".join(
-                        reversed(previous_lines)
-                    )
-
-                discount = round(
-                    (
-                        (next_price - current_price)
-                        / next_price
-                    ) * 100,
-                    2
-                )
 
                 promotions.append({
                     "retailer": "King Savers",
                     "product_name": product_name,
                     "current_price": current_price,
-                    "old_price": next_price,
+                    "old_price": old_price,
                     "discount_percent": discount,
                     "promotion": True,
                     "source": "King Savers Brochure",
                     "page": page_number
                 })
 
-                i += 2
-                continue
+            # Reset for the next product
+            product_lines = []
+
+            i += 1
+            continue
+
+        # Normal text belongs to the current product
+        product_lines.append(line)
 
         i += 1
 
     return promotions
 
-
-# ============================================================
-# REMOVE DUPLICATES
-# ============================================================
 
 def remove_duplicates(products):
 
@@ -227,21 +218,20 @@ def remove_duplicates(products):
             product["old_price"]
         )
 
-        unique[key] = product
+        if key not in unique:
+            unique[key] = product
+
+    return list(unique.values())
+
+    unique[key] = product
 
     return list(unique.values())
 
 
-# ============================================================
-# SAVE CSV
-# ============================================================
-
 def save_csv(products):
 
     if not products:
-
         print("No promotions found.")
-
         return
 
     fieldnames = [
@@ -268,32 +258,19 @@ def save_csv(products):
         )
 
         writer.writeheader()
-
         writer.writerows(products)
 
     print()
-    print(
-        f"Saved {len(products)} promotions."
-    )
+    print(f"Saved {len(products)} promotions.")
+    print(f"CSV: {OUTPUT_FILE}")
 
-    print(
-        f"CSV: {OUTPUT_FILE}"
-    )
-
-
-# ============================================================
-# MAIN
-# ============================================================
 
 def main():
 
-    # 1. Download
     download_brochure()
 
-    # 2. Read ALL pages
     pages = extract_pages()
 
-    # 3. Extract promotions
     all_promotions = []
 
     for page in pages:
@@ -303,21 +280,15 @@ def main():
             page["text"]
         )
 
-        all_promotions.extend(
-            page_promotions
-        )
+        all_promotions.extend(page_promotions)
 
         print(
             f"Page {page['page']}: "
             f"{len(page_promotions)} promotions found"
         )
 
-    # 4. Deduplicate
-    all_promotions = remove_duplicates(
-        all_promotions
-    )
+    all_promotions = remove_duplicates(all_promotions)
 
-    # 5. Save
     save_csv(all_promotions)
 
     print()
