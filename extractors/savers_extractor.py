@@ -1,70 +1,229 @@
-import requests
 import pymupdf
-from pathlib import Path
+import pytesseract
+from pytesseract import Output
+from PIL import Image
+import io
+import re
+import csv
+import os
 
 
-BROCHURE_URL = (
-    "https://savers.mu/wp-content/uploads/2025/06/"
-    "Promo-21-june-17-july-2025.pdf"
-)
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
-DATA_DIR = Path("data")
-PDF_FILE = DATA_DIR / "savers_brochure.pdf"
+PDF_FILE = "data/savers_brochure.pdf"
+OUTPUT_FILE = "data/savers_price_candidates.csv"
+
+TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
 
-def download_brochure():
-    DATA_DIR.mkdir(exist_ok=True)
+# ============================================================
+# PRICE DETECTION
+# ============================================================
 
-    print("Downloading Savers brochure...")
+def is_price(text):
+    """
+    Check whether an OCR word looks like a price.
 
-    response = requests.get(
-        BROCHURE_URL,
-        timeout=60
+    Examples:
+        5.00
+        38.00
+        72.00
+        116.00
+        314.00
+    """
+
+    text = text.strip()
+
+    return bool(
+        re.fullmatch(r"\d{1,4}\.\d{2}", text)
     )
 
-    response.raise_for_status()
 
-    with open(PDF_FILE, "wb") as file:
-        file.write(response.content)
+# ============================================================
+# OCR A SINGLE PAGE
+# ============================================================
 
-    print(f"Saved to: {PDF_FILE}")
+def process_page(page, page_number):
+
+    print(f"Processing page {page_number}...")
+
+    # --------------------------------------------------------
+    # Convert PDF page to image
+    # --------------------------------------------------------
+
+    pixmap = page.get_pixmap(
+        matrix=pymupdf.Matrix(2, 2)
+    )
+
+    image = Image.open(
+        io.BytesIO(
+            pixmap.tobytes("png")
+        )
+    )
+
+    # --------------------------------------------------------
+    # Run Tesseract OCR
+    # --------------------------------------------------------
+
+    data = pytesseract.image_to_data(
+        image,
+        output_type=Output.DICT
+    )
+
+    prices = []
+
+    # --------------------------------------------------------
+    # Find prices
+    # --------------------------------------------------------
+
+    for i, text in enumerate(data["text"]):
+
+        text = text.strip()
+
+        if not text:
+            continue
+
+        if is_price(text):
+
+            prices.append({
+                "retailer": "Savers",
+                "price": float(text),
+                "page": page_number,
+                "x": data["left"][i],
+                "y": data["top"][i],
+                "confidence": data["conf"][i]
+            })
+
+    print(
+        f"  Found {len(prices)} price candidates"
+    )
+
+    return prices
 
 
-def inspect_brochure():
+# ============================================================
+# MAIN SCRAPER
+# ============================================================
 
-    print("Opening brochure...")
+def scrape_savers():
+
+    print("=" * 70)
+    print("SAVERS SCRAPER")
+    print("=" * 70)
+
+    # --------------------------------------------------------
+    # Check PDF
+    # --------------------------------------------------------
+
+    if not os.path.exists(PDF_FILE):
+
+        print()
+        print("ERROR:")
+        print(f"Could not find: {PDF_FILE}")
+        print()
+
+        return
+
+    # --------------------------------------------------------
+    # Open PDF
+    # --------------------------------------------------------
+
+    print()
+    print("Opening Savers brochure...")
 
     document = pymupdf.open(PDF_FILE)
 
-    print(f"Pages: {len(document)}")
-    print()
+    print(
+        f"Brochure opened successfully."
+    )
 
-    for page_number, page in enumerate(document, start=1):
+    print(
+        f"Total pages: {len(document)}"
+    )
 
-        text = page.get_text("text")
-        images = page.get_images(full=True)
+    # --------------------------------------------------------
+    # Process every page
+    # --------------------------------------------------------
 
-        text_characters = len(text.strip())
-        image_count = len(images)
+    all_prices = []
 
-        print(
-            f"Page {page_number}: "
-            f"{text_characters} text characters, "
-            f"{image_count} images"
+    for page_index in range(len(document)):
+
+        page_number = page_index + 1
+
+        page = document[page_index]
+
+        prices = process_page(
+            page,
+            page_number
         )
+
+        all_prices.extend(prices)
 
     document.close()
 
-
-def main():
-
-    download_brochure()
-
-    inspect_brochure()
+    # --------------------------------------------------------
+    # Save results
+    # --------------------------------------------------------
 
     print()
-    print("Inspection complete.")
+    print("Saving results...")
 
+    os.makedirs(
+        "data",
+        exist_ok=True
+    )
+
+    with open(
+        OUTPUT_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as file:
+
+        fieldnames = [
+            "retailer",
+            "price",
+            "page",
+            "x",
+            "y",
+            "confidence"
+        ]
+
+        writer = csv.DictWriter(
+            file,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+
+        writer.writerows(all_prices)
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 70)
+    print("SAVERS SCRAPER COMPLETE")
+    print("=" * 70)
+
+    print(
+        f"Total price candidates: {len(all_prices)}"
+    )
+
+    print(
+        f"CSV saved to: {OUTPUT_FILE}"
+    )
+
+
+# ============================================================
+# RUN
+# ============================================================
 
 if __name__ == "__main__":
-    main()
+    scrape_savers()
