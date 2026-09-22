@@ -1,16 +1,29 @@
-# Generic brochure extractor.
-# This will eventually handle product and promotion data
-# extracted from retailer brochures.
+# Generic brochure extractor placeholder.
+#
+# Specific brochure retailers should have their own plugins,
+# for example:
+#
+#     KingSaversExtractor
+#     SaversExtractor
+#
+# This class exists for future generic brochure functionality.
+
 
 from extractors.base_extractor import BaseExtractor
-from models.product import Product
 
 
 class BrochureExtractor(BaseExtractor):
 
-    def extract_products(self, response):
+    # Generic brochure extractors do not require
+    # the website HTTP Fetcher.
+    requires_fetcher = False
 
-        # Brochure extraction logic will be added here.
-        products = []
+    def extract_products(
+        self,
+        response=None
+    ):
 
-        return products
+        # Generic brochure extraction logic
+        # can be implemented here in the future.
+
+        return []

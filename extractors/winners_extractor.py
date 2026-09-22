@@ -1,5 +1,17 @@
 # Website-specific extractor for Winners Mauritius.
-# Converts Winners product HTML into standardized Product objects.
+#
+# This is a plugin for the generic PikSou ScraperEngine.
+#
+# The engine handles:
+# - HTTP requests
+# - categories
+# - pagination
+# - duplicate management
+#
+# This plugin handles:
+# - Winners HTML
+# - Winners selectors
+# - Product extraction
 
 
 from bs4 import BeautifulSoup
@@ -10,58 +22,189 @@ from models.product import Product
 
 class WinnersExtractor(BaseExtractor):
 
-    def extract_products(self, response):
-        # Parse the HTML returned by the Winners website.
-        soup = BeautifulSoup(response.text, "html.parser")
+    # Winners is a website-based extractor.
+    requires_fetcher = True
 
-        # Find all product cards on the page.
-        product_cards = soup.select(".product-item")
+    def extract_products(self, response):
+
+        # Parse the HTML response.
+        soup = BeautifulSoup(
+            response.text,
+            "html.parser"
+        )
+
+        # Find all Winners product cards.
+        product_cards = soup.select(
+            ".product-item"
+        )
 
         products = []
 
-        # Process each product card.
+        # Process every product card.
         for card in product_cards:
 
-            # Get the Winners product ID.
-            product_id = card.get("data-productid")
+            # -------------------------------------------------
+            # PRODUCT ID
+            # -------------------------------------------------
 
-            # Get the product name and URL.
-            name_element = card.select_one(".product-title a")
+            product_id = card.get(
+                "data-productid"
+            )
+
+            # -------------------------------------------------
+            # PRODUCT NAME + URL
+            # -------------------------------------------------
+
+            name_element = card.select_one(
+                ".product-title a"
+            )
 
             if name_element:
-                name = name_element.get_text(strip=True)
-                product_url = name_element.get("href")
+
+                name = name_element.get_text(
+                    strip=True
+                )
+
+                product_url = name_element.get(
+                    "href"
+                )
+
             else:
+
                 name = None
                 product_url = None
 
-            # Get the SKU.
-            sku_element = card.select_one(".sku")
+            # -------------------------------------------------
+            # SKU
+            # -------------------------------------------------
 
-            if sku_element:
-                sku = sku_element.get_text(strip=True)
-            else:
-                sku = None
-
-            # Get the current price.
-            price_element = card.select_one(".actual-price")
-
-            if price_element:
-                price = price_element.get_text(strip=True)
-            else:
-                price = None
-
-            # Create a standardized Product object.
-            product = Product(
-                product_id=product_id,
-                name=name,
-                sku=sku,
-                price=price,
-                url=product_url,
-                category=None
+            sku_element = card.select_one(
+                ".sku"
             )
 
-            # Add the product to the list.
+            if sku_element:
+
+                sku = sku_element.get_text(
+                    strip=True
+                )
+
+            else:
+
+                sku = None
+
+            # -------------------------------------------------
+            # OLD PRICE
+            # -------------------------------------------------
+
+            old_price_element = card.select_one(
+                ".old-price"
+            )
+
+            if old_price_element:
+
+                old_price = old_price_element.get_text(
+                    strip=True
+                )
+
+            else:
+
+                old_price = None
+
+            # -------------------------------------------------
+            # CURRENT PRICE
+            # -------------------------------------------------
+
+            price_element = card.select_one(
+                ".actual-price"
+            )
+
+            if price_element:
+
+                price = price_element.get_text(
+                    strip=True
+                )
+
+            else:
+
+                price = None
+
+            # -------------------------------------------------
+            # DISCOUNT
+            # -------------------------------------------------
+
+            discount_percent = None
+
+            # Try to convert prices into numbers.
+            try:
+
+                if old_price and price:
+
+                    old_price_number = float(
+                        old_price
+                        .replace("Rs", "")
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    price_number = float(
+                        price
+                        .replace("Rs", "")
+                        .replace(",", "")
+                        .strip()
+                    )
+
+                    if old_price_number > 0:
+
+                        discount_percent = round(
+                            (
+                                (
+                                    old_price_number
+                                    - price_number
+                                )
+                                / old_price_number
+                            )
+                            * 100,
+                            2
+                        )
+
+            except (ValueError, TypeError):
+
+                discount_percent = None
+
+            # -------------------------------------------------
+            # PRODUCT OBJECT
+            # -------------------------------------------------
+
+            product = Product(
+
+                product_id=product_id,
+
+                name=name,
+
+                sku=sku,
+
+                price=price,
+
+                old_price=old_price,
+
+                discount_percent=discount_percent,
+
+                promotion=(
+                    True
+                    if old_price
+                    else False
+                ),
+
+                url=product_url,
+
+                category=None,
+
+                source="Winners Website",
+
+                page=None
+            )
+
+            # Add Product object.
             products.append(product)
 
         return products

@@ -1,4 +1,5 @@
-# Exports standardized product data to CSV files.
+# Exports standardized Product objects to CSV files.
+
 
 import csv
 
@@ -13,23 +14,32 @@ class CSVExporter:
             "sku",
             "price",
             "old_price",
+            "discount_percent",
             "promotion",
             "url",
             "category",
             "source",
+            "page",
             "promo_start",
             "promo_end"
         ]
 
-        with open(filename, "w", newline="", encoding="utf-8") as file:
+        with open(
+            filename,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as file:
 
             writer = csv.DictWriter(
                 file,
                 fieldnames=fieldnames
             )
 
+            # Write CSV header.
             writer.writeheader()
 
+            # Write products.
             for product in products:
 
                 writer.writerow({
@@ -38,12 +48,17 @@ class CSVExporter:
                     "sku": product.sku,
                     "price": product.price,
                     "old_price": product.old_price,
+                    "discount_percent": product.discount_percent,
                     "promotion": product.promotion,
                     "url": product.url,
                     "category": product.category,
                     "source": product.source,
+                    "page": product.page,
                     "promo_start": product.promo_start,
                     "promo_end": product.promo_end
                 })
 
-        print(f"Exported {len(products)} products to {filename}")
+        print(
+            f"Exported {len(products)} products "
+            f"to {filename}"
+        )
