@@ -6,11 +6,11 @@
 
 from bs4 import BeautifulSoup
 
-from extractors.base_extractor import BaseExtractor
+from scrapers_plugins.base_scraper import base_scraper.py
 from models.product import Product
 
 
-class WinnersExtractor(BaseExtractor):
+class WinnersExtractor(base_scraper.py):
 
     #Winners is a website-based extractor.
     requires_fetcher = True
