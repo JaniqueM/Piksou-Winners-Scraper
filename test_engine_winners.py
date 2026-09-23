@@ -1,14 +1,10 @@
 from engine.scraper import ScraperEngine
 from engine.fetcher import Fetcher
 from config.scraper_config import ScraperConfig
-from extractors.winners_extractor import WinnersExtractor
+from scrapers_plugins.winners_scraper import WinnersExtractor
 from exporters.csv_exporter import CSVExporter
 
-
-# ---------------------------------------------------------
-# WINNERS CONFIGURATION
-# ---------------------------------------------------------
-
+#WINNERS CONFIGURATION
 config = ScraperConfig(
 
     base_url="https://www.winners.mu",
@@ -26,11 +22,7 @@ config = ScraperConfig(
     max_pages=5
 )
 
-
-# ---------------------------------------------------------
-# FETCHER
-# ---------------------------------------------------------
-
+#FETCHER
 fetcher = Fetcher(
     headers={
         "User-Agent": (
@@ -45,18 +37,10 @@ fetcher = Fetcher(
     timeout=30
 )
 
-
-# ---------------------------------------------------------
-# PLUGIN
-# ---------------------------------------------------------
-
+#PLUGIN
 extractor = WinnersExtractor()
 
-
-# ---------------------------------------------------------
-# ENGINE
-# ---------------------------------------------------------
-
+#ENGINE
 engine = ScraperEngine(
 
     fetcher=fetcher,
@@ -66,18 +50,10 @@ engine = ScraperEngine(
     extractor=extractor
 )
 
-
-# ---------------------------------------------------------
-# RUN
-# ---------------------------------------------------------
-
+#RUN
 products = engine.run()
 
-
-# ---------------------------------------------------------
-# EXPORT
-# ---------------------------------------------------------
-
+#EXPORT
 exporter = CSVExporter()
 
 exporter.export(
