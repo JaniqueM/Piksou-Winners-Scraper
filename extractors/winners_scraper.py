@@ -1,18 +1,8 @@
-# Website-specific extractor for Winners Mauritius.
-#
-# This is a plugin for the generic PikSou ScraperEngine.
-#
-# The engine handles:
-# - HTTP requests
-# - categories
-# - pagination
-# - duplicate management
-#
+# Website-specific scraper for Winners Mauritius.
 # This plugin handles:
-# - Winners HTML
-# - Winners selectors
-# - Product extraction
-
+#1. Winners HTML
+#2. Winners selectors
+#3. Product extraction
 
 from bs4 import BeautifulSoup
 
@@ -22,39 +12,33 @@ from models.product import Product
 
 class WinnersExtractor(BaseExtractor):
 
-    # Winners is a website-based extractor.
+    #Winners is a website-based extractor.
     requires_fetcher = True
 
     def extract_products(self, response):
 
-        # Parse the HTML response.
+        #Parse the HTML response.
         soup = BeautifulSoup(
             response.text,
             "html.parser"
         )
 
-        # Find all Winners product cards.
+        #Find all Winners product cards.
         product_cards = soup.select(
             ".product-item"
         )
 
         products = []
 
-        # Process every product card.
+        #Process every product card.
         for card in product_cards:
 
-            # -------------------------------------------------
-            # PRODUCT ID
-            # -------------------------------------------------
-
+            #PRODUCT ID
             product_id = card.get(
                 "data-productid"
             )
 
-            # -------------------------------------------------
-            # PRODUCT NAME + URL
-            # -------------------------------------------------
-
+            #PRODUCT NAME + URL
             name_element = card.select_one(
                 ".product-title a"
             )
@@ -74,10 +58,7 @@ class WinnersExtractor(BaseExtractor):
                 name = None
                 product_url = None
 
-            # -------------------------------------------------
-            # SKU
-            # -------------------------------------------------
-
+            #SKU
             sku_element = card.select_one(
                 ".sku"
             )
@@ -92,10 +73,7 @@ class WinnersExtractor(BaseExtractor):
 
                 sku = None
 
-            # -------------------------------------------------
-            # OLD PRICE
-            # -------------------------------------------------
-
+            #OLD PRICE
             old_price_element = card.select_one(
                 ".old-price"
             )
@@ -110,10 +88,7 @@ class WinnersExtractor(BaseExtractor):
 
                 old_price = None
 
-            # -------------------------------------------------
-            # CURRENT PRICE
-            # -------------------------------------------------
-
+            #CURRENT PRICE
             price_element = card.select_one(
                 ".actual-price"
             )
@@ -128,10 +103,7 @@ class WinnersExtractor(BaseExtractor):
 
                 price = None
 
-            # -------------------------------------------------
-            # DISCOUNT
-            # -------------------------------------------------
-
+            #DISCOUNT
             discount_percent = None
 
             # Try to convert prices into numbers.
@@ -171,10 +143,7 @@ class WinnersExtractor(BaseExtractor):
 
                 discount_percent = None
 
-            # -------------------------------------------------
-            # PRODUCT OBJECT
-            # -------------------------------------------------
-
+            #PRODUCT OBJECT
             product = Product(
 
                 product_id=product_id,
@@ -204,7 +173,7 @@ class WinnersExtractor(BaseExtractor):
                 page=None
             )
 
-            # Add Product object.
+            #Add Product object.
             products.append(product)
 
         return products

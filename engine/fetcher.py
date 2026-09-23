@@ -1,9 +1,6 @@
-# Reusable HTTP fetcher responsible for sending requests
-# and handling timeouts and request errors.
-
-
+#Reusable HTTP fetcher responsible for sending requests
+#Handling timeouts and request errors.
 import requests
-
 
 class Fetcher:
 

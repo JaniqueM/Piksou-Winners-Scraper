@@ -1,24 +1,23 @@
-# Core scraping engine responsible for running
-# independent retailer extractors and collecting products.
-
+#Core scraping engine responsible for running
+#independent retailer extractors and collecting products.
 
 class ScraperEngine:
 
     def __init__(self, fetcher=None, config=None, extractor=None):
 
-        # Optional reusable HTTP fetcher.
+        #Optional reusable HTTP fetcher.
         self.fetcher = fetcher
 
-        # Optional configuration for website scraping.
+        #Optional configuration for website scraping.
         self.config = config
 
-        # The plugin/extractor being used.
+        #The plugin/extractor being used.
         self.extractor = extractor
 
-        # Stores all collected products.
+        #Stores all collected products.
         self.products = []
 
-        # Keeps track of products already collected.
+        #Keeps record of products already collected.
         self.seen_product_ids = set()
 
     def fetch_page(self, url):
@@ -61,7 +60,7 @@ class ScraperEngine:
 
         for product in products:
 
-            # Use product ID when available.
+            #Use product ID when available.
             if product.product_id is not None:
 
                 unique_key = (
@@ -71,7 +70,7 @@ class ScraperEngine:
 
             else:
 
-                # Brochure/OCR products may not have product IDs.
+                #Brochure/OCR products may not have product IDs.
                 unique_key = (
                     "product",
                     product.source,
@@ -80,14 +79,14 @@ class ScraperEngine:
                     product.old_price
                 )
 
-            # Skip duplicates.
+            #Skip duplicates.
             if unique_key in self.seen_product_ids:
                 continue
 
-            # Record product.
+            #Record product.
             self.seen_product_ids.add(unique_key)
 
-            # Store product.
+            #Store product.
             self.products.append(product)
 
     def scrape_category(self, category_path):
@@ -106,27 +105,27 @@ class ScraperEngine:
 
         while page <= self.config.max_pages:
 
-            # Build URL.
+            #Builds URL.
             page_url = self.build_page_url(
                 category_path,
                 page
             )
 
-            # Fetch page.
+            #Fetches page.
             response = self.fetch_page(page_url)
 
-            # Stop if request failed.
+            #Stops if request failed.
             if response is None:
                 break
 
-            # Extract products using the selected plugin.
+            #Extract products using the selected plugin.
             products = self.extractor.extract_products(response)
 
-            # Stop when no products are found.
+            #Stop when no products are found.
             if not products:
                 break
 
-            # Add products.
+            #Add products.
             self.add_products(products)
 
             print(

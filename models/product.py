@@ -1,11 +1,10 @@
-# Provides standardized product details for all PikSou extractors.
-#
-# The same Product model is used for:
-# - Websites
-# - PDFs
-# - OCR brochures
-# - Future APIs
-# - Other retailer plugins
+#Provides standardized product details for all PikSou extractors.
+#The same Product model is used for:
+#1. Websites
+#2. PDFs
+#3. OCR brochures
+#4. Future APIs
+#5. Other retailer plugins
 
 
 class Product:
@@ -27,41 +26,41 @@ class Product:
         promo_end=None
     ):
 
-        # Retailer product ID.
+        #Retailer product ID.
         self.product_id = product_id
 
-        # Product name.
+        #Product name.
         self.name = name
 
-        # Stock keeping unit.
+        #Stock keeping unit.
         self.sku = sku
 
-        # Current selling price.
+        #Current selling price.
         self.price = price
 
-        # Previous/original price.
+        #Previous/original price.
         self.old_price = old_price
 
-        # Calculated percentage discount.
+        #Calculated percentage discount.
         self.discount_percent = discount_percent
 
-        # Promotion information.
+        #Promotion information.
         self.promotion = promotion
 
-        # Product URL.
+        #Product URL.
         self.url = url
 
-        # Website category.
+        #Website category.
         self.category = category
 
-        # Source of the product.
+        #Source of the product.
         self.source = source
 
-        # Brochure page.
+        #Brochure page.
         self.page = page
 
-        # Promotion starting date.
+        #Promotion starting date.
         self.promo_start = promo_start
 
-        # Promotion ending date.
+        #Promotion ending date.
         self.promo_end = promo_end

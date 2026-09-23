@@ -1,10 +1,9 @@
-# Defines the standard interface that all PikSou extractors must follow.
-
+#Defines the standard interface that all PikSou scrapers must follow.
 
 class BaseExtractor:
 
-    # Web-based extractors need the generic Fetcher.
-    # Brochure/OCR extractors can set this to False.
+    #Web-based scraper need the generic Fetcher.
+    #Brochure/OCR extractors can set this to False.
     requires_fetcher = True
 
     def extract_products(self, response=None):

@@ -1,8 +1,5 @@
-# Exports standardized Product objects to CSV files.
-
-
+#Exports standardized Product objects to CSV files.
 import csv
-
 
 class CSVExporter:
 
@@ -36,10 +33,10 @@ class CSVExporter:
                 fieldnames=fieldnames
             )
 
-            # Write CSV header.
+            #Writes CSV header.
             writer.writeheader()
 
-            # Write products.
+            #Writes products.
             for product in products:
 
                 writer.writerow({
