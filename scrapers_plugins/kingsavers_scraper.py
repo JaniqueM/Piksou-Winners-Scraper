@@ -1,10 +1,14 @@
 # King Savers brochure scraper.
+#
 # This is an independent PikSou plugin.
+#
 # The generic engine does NOT know:
-#1. how the King Savers PDF works
-#2. how prices are formatted
-#3. how promotions are identified
+# 1. how the King Savers PDF works
+# 2. how prices are formatted
+# 3. how promotions are identified
+#
 # This plugin handles all of that itself.
+
 
 import re
 from pathlib import Path
@@ -12,19 +16,23 @@ from pathlib import Path
 import requests
 import pymupdf
 
-from extractors.base_extractor import BaseExtractor
+from scrapers_plugins.base_scraper import BaseScraper
 from models.product import Product
 
 
-class KingSaversExtractor(BaseExtractor):
+class KingSaversExtractor(BaseScraper):
 
-    #King Savers handles its own PDF.
-    #Therefore the generic HTTP Fetcher is not required.
+    # King Savers handles its own PDF.
+    # Therefore the generic HTTP Fetcher is not required.
     requires_fetcher = False
 
-    #CONFIGURATION
+    # ---------------------------------------------------------
+    # CONFIGURATION
+    # ---------------------------------------------------------
+
     BROCHURE_URL = (
-        "https://www.king-savers.com/wp-content/uploads/2026/07/"
+        "https://www.king-savers.com/"
+        "wp-content/uploads/2026/07/"
         "KS-EOM-JUL-2026_LR-compressed.pdf"
     )
 
@@ -34,7 +42,10 @@ class KingSaversExtractor(BaseExtractor):
         DATA_DIR / "kingsavers_brochure.pdf"
     )
 
-    #DOWNLOAD BROCHURE
+    # ---------------------------------------------------------
+    # DOWNLOAD BROCHURE
+    # ---------------------------------------------------------
+
     def download_brochure(self):
 
         self.DATA_DIR.mkdir(
@@ -66,7 +77,10 @@ class KingSaversExtractor(BaseExtractor):
             f"{self.BROCHURE_PATH}"
         )
 
-    #READ PDF
+    # ---------------------------------------------------------
+    # READ PDF
+    # ---------------------------------------------------------
+
     def extract_pages(self):
 
         print(
@@ -104,16 +118,22 @@ class KingSaversExtractor(BaseExtractor):
 
         return pages
 
-    #PRICE DETECTION
+    # ---------------------------------------------------------
+    # PRICE DETECTION
+    # ---------------------------------------------------------
+
     def is_price(self, line):
 
         return re.match(
             r"^Rs\s*[0-9]+(?:\.[0-9]{1,2})?$",
             line,
             re.IGNORECASE
-        )
+        ) is not None
 
-    #GET PRICE
+    # ---------------------------------------------------------
+    # GET PRICE
+    # ---------------------------------------------------------
+
     def get_price(self, line):
 
         match = re.match(
@@ -129,8 +149,11 @@ class KingSaversExtractor(BaseExtractor):
             )
 
         return None
-    
+
+    # ---------------------------------------------------------
     # IGNORE UNWANTED LINES
+    # ---------------------------------------------------------
+
     def is_ignored_line(self, line):
 
         ignored_patterns = [
@@ -141,16 +164,16 @@ class KingSaversExtractor(BaseExtractor):
             r"^CERTAINS PRODUITS",
             r"^PAS DISPONIBLES",
             r"^POUR NOS HORAIRES",
-            r"^D['â€™]OUVERTURE",
+            r"^D['’]OUVERTURE",
             r"^VISITEZ NOTRE PAGE",
             r"^TEL:",
             r"^BEAU VALLON",
-            r"^BO['â€™]VALON MALL",
+            r"^BO['’]VALON MALL",
             r"^GOODLANDS",
             r"^VIP VILLAGE",
             r"^OPP HURRY",
             r"^NEW GROVE",
-            r"^LA CROISÃ‰E",
+            r"^LA CROISÉE",
             r"^ROYAL ROAD",
             r"^SURINAM",
             r"^BONNE TERRE",
@@ -173,7 +196,10 @@ class KingSaversExtractor(BaseExtractor):
 
         return False
 
+    # ---------------------------------------------------------
     # CLEAN PRODUCT NAME
+    # ---------------------------------------------------------
+
     def clean_product_name(self, lines):
 
         cleaned = []
@@ -193,8 +219,11 @@ class KingSaversExtractor(BaseExtractor):
         return " ".join(
             cleaned
         )
-    
+
+    # ---------------------------------------------------------
     # EXTRACT PROMOTIONS FROM PAGE
+    # ---------------------------------------------------------
+
     def extract_promotions_from_page(
         self,
         page_number,
@@ -223,7 +252,10 @@ class KingSaversExtractor(BaseExtractor):
                 i += 1
                 continue
 
+            # -------------------------------------------------
             # PRICE FOUND
+            # -------------------------------------------------
+
             if self.is_price(line):
 
                 current_price = self.get_price(
@@ -330,7 +362,10 @@ class KingSaversExtractor(BaseExtractor):
 
         return promotions
 
-    #REMOVE DUPLICATES
+    # ---------------------------------------------------------
+    # REMOVE DUPLICATES
+    # ---------------------------------------------------------
+
     def remove_duplicates(
         self,
         products
@@ -354,13 +389,17 @@ class KingSaversExtractor(BaseExtractor):
             unique.values()
         )
 
-    #MAIN PLUGIN METHOD
+    # ---------------------------------------------------------
+    # MAIN PLUGIN METHOD
+    # ---------------------------------------------------------
+
     def extract_products(
         self,
         response=None
     ):
 
-        # Download only if the brochure does not already exist.
+        # Download only if the brochure
+        # does not already exist.
         if not self.BROCHURE_PATH.exists():
 
             self.download_brochure()
@@ -371,12 +410,12 @@ class KingSaversExtractor(BaseExtractor):
                 "Using existing King Savers brochure."
             )
 
-        #Extract PDF text.
+        # Extract PDF text.
         pages = self.extract_pages()
 
         all_products = []
 
-        #Process every page.
+        # Process every page.
         for page in pages:
 
             page_products = (
@@ -396,7 +435,7 @@ class KingSaversExtractor(BaseExtractor):
                 f"promotions found"
             )
 
-        #Remove duplicates.
+        # Remove duplicates.
         all_products = (
             self.remove_duplicates(
                 all_products
@@ -404,7 +443,7 @@ class KingSaversExtractor(BaseExtractor):
         )
 
         print(
-            f"\nKing Savers extraction complete."
+            "\nKing Savers extraction complete."
         )
 
         print(

@@ -1,19 +1,22 @@
-#Defines the standard interface that all PikSou scrapers must follow.
+from abc import ABC, abstractmethod
 
-class BaseExtractor:
 
-    #Web-based scraper need the generic Fetcher.
-    #Brochure/OCR extractors can set this to False.
-    requires_fetcher = True
+class BaseScraper(ABC):
+    """
+    Base class for all retailer scrapers.
+    """
 
+    # True for website scrapers.
+    # False for brochure/OCR scrapers.
+    requires_fetcher = False
+
+    @abstractmethod
     def extract_products(self, response=None):
         """
-        Extract products and return a list of Product objects.
+        Extract products from the retailer source.
 
-        Web extractors receive an HTTP response.
-        Brochure extractors can ignore the response and process
-        their own source files.
+        Web scrapers receive a response.
+
+        Brochure/OCR scrapers can ignore the response.
         """
-        raise NotImplementedError(
-            "Extractors must implement extract_products()."
-        )
+        pass
