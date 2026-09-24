@@ -1,25 +1,13 @@
-# Savers brochure/OCR scraper.
-#
-# This is an independent PikSou plugin.
-#
-# The generic engine does NOT handle:
-# 1. Savers PDF
-# 2. OCR
-# 3. Tesseract
-# 4. price detection
-# 5. product detection
-#
-# The plugin returns standardized Product objects
-# to the generic ScraperEngine.
-
-
+import os
 import re
-from pathlib import Path
 
+import requests
 import pymupdf
 import pytesseract
 
 from PIL import Image
+from bs4 import BeautifulSoup
+from pytesseract import Output
 
 from scrapers_plugins.base_scraper import BaseScraper
 from models.product import Product
@@ -27,122 +15,476 @@ from models.product import Product
 
 class SaversExtractor(BaseScraper):
 
-    # Savers manages its own PDF and OCR.
     requires_fetcher = False
 
-    # ---------------------------------------------------------
-    # CONFIGURATION
-    # ---------------------------------------------------------
+    WEBSITE_URL = "https://savers.mu/"
+    BROCHURE_URL = "https://savers.mu/brochure/"
+    ARCHIVE_URL = "https://savers.mu/archive/"
 
-    PDF_FILE = Path(
-        "data/savers_brochure.pdf"
+    PDF_PATH = os.path.join(
+        "data",
+        "savers_brochure.pdf"
     )
 
     TESSERACT_PATH = (
         r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     )
 
-    # Minimum OCR confidence.
-    MIN_CONFIDENCE = 45
+    MIN_CONFIDENCE = 50
 
-    # Maximum distance between current and old prices.
-    MAX_X_DISTANCE = 300
-    MAX_Y_DISTANCE = 110
-
-    # Discount limits.
-    MIN_DISCOUNT = 5
-    MAX_DISCOUNT = 90
-
-    # ---------------------------------------------------------
-    # INITIALIZATION
-    # ---------------------------------------------------------
+    # The Savers brochure has approximately four
+    # product columns across the page.
+    COLUMN_RANGES = [
+        (0, 312),
+        (312, 624),
+        (624, 936),
+        (936, 1248)
+    ]
 
     def __init__(self):
 
-        # Tell pytesseract where Tesseract is installed.
+        os.makedirs(
+            "data",
+            exist_ok=True
+        )
+
         pytesseract.pytesseract.tesseract_cmd = (
             self.TESSERACT_PATH
         )
 
-    # ---------------------------------------------------------
-    # PRICE PARSING
-    # ---------------------------------------------------------
+    # =========================================================
+    # DOWNLOAD BROCHURE
+    # =========================================================
+
+    def download_brochure(self):
+
+        print("\nChecking Savers website for brochure...")
+
+        pages = [
+            self.BROCHURE_URL,
+            self.WEBSITE_URL,
+            self.ARCHIVE_URL
+        ]
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/153.0.0.0 "
+                "Safari/537.36"
+            )
+        }
+
+        pdf_links = []
+
+        for page_url in pages:
+
+            try:
+
+                response = requests.get(
+                    page_url,
+                    headers=headers,
+                    timeout=30
+                )
+
+                if response.status_code != 200:
+                    continue
+
+                soup = BeautifulSoup(
+                    response.text,
+                    "html.parser"
+                )
+
+                for link in soup.find_all(
+                    "a",
+                    href=True
+                ):
+
+                    href = link["href"]
+
+                    if ".pdf" not in href.lower():
+                        continue
+
+                    if href.startswith("//"):
+
+                        href = "https:" + href
+
+                    elif href.startswith("/"):
+
+                        href = (
+                            "https://savers.mu"
+                            + href
+                        )
+
+                    elif not href.startswith("http"):
+
+                        continue
+
+                    pdf_links.append(href)
+
+            except Exception as error:
+
+                print(
+                    f"Could not check {page_url}: "
+                    f"{error}"
+                )
+
+        if not pdf_links:
+
+            raise RuntimeError(
+                "No Savers PDF brochure was found."
+            )
+
+        pdf_links = list(
+            dict.fromkeys(pdf_links)
+        )
+
+        preferred = []
+
+        for url in pdf_links:
+
+            lower_url = url.lower()
+
+            if any(
+                word in lower_url
+                for word in [
+                    "brochure",
+                    "promo",
+                    "promotion",
+                    "catalogue",
+                    "catalog"
+                ]
+            ):
+
+                preferred.append(url)
+
+        if preferred:
+
+            brochure_url = preferred[0]
+
+        else:
+
+            brochure_url = pdf_links[0]
+
+        print(
+            f"Downloading brochure:\n"
+            f"{brochure_url}"
+        )
+
+        response = requests.get(
+            brochure_url,
+            headers=headers,
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        with open(
+            self.PDF_PATH,
+            "wb"
+        ) as file:
+
+            file.write(response.content)
+
+        print(
+            f"Brochure saved to: "
+            f"{self.PDF_PATH}"
+        )
+
+    # =========================================================
+    # PRICE DETECTION
+    # =========================================================
 
     def parse_price(self, text):
 
-        if text is None:
+        if not text:
             return None
 
-        text = str(text).strip()
+        text = text.strip()
 
-        text = (
-            text
-            .replace("Rs", "")
-            .replace("rs", "")
-            .replace("R$", "")
-            .replace("$", "")
-            .replace(",", "")
-            .strip()
-        )
-
-        match = re.search(
-            r"\d+(?:\.\d{1,2})?",
+        cleaned = re.sub(
+            r"[^\d.,]",
+            "",
             text
         )
 
-        if not match:
+        if not cleaned:
             return None
 
-        try:
-            return float(
-                match.group(0)
+        cleaned = cleaned.replace(
+            ",",
+            "."
+        )
+
+        if cleaned.count(".") > 1:
+
+            parts = cleaned.split(".")
+
+            cleaned = (
+                parts[0]
+                + "."
+                + "".join(parts[1:])
             )
 
+        try:
+
+            value = float(cleaned)
+
         except ValueError:
+
             return None
 
-    # ---------------------------------------------------------
-    # CLEAN TEXT
-    # ---------------------------------------------------------
+        # Reject obvious OCR garbage.
+        if value < 10:
+            return None
 
-    def clean_text(self, text):
+        if value > 5000:
+            return None
+
+        return value
+
+    def is_price(self, text):
 
         if not text:
-            return ""
+            return False
 
-        text = str(text)
+        text = text.strip()
 
-        text = text.replace(
-            "\n",
-            " "
+        pattern = (
+            r"^\d{1,4}"
+            r"(?:[.,]\d{1,2})?$"
         )
 
-        text = re.sub(
-            r"\s+",
-            " ",
+        if not re.fullmatch(
+            pattern,
+            text
+        ):
+
+            return False
+
+        return (
+            self.parse_price(text)
+            is not None
+        )
+
+    # =========================================================
+    # IGNORE BROCHURE / OCR NOISE
+    # =========================================================
+
+    def is_noise(self, text):
+
+        if not text:
+            return True
+
+        lower = text.lower().strip()
+
+        noise_words = [
+            "vat",
+            "zero",
+            "incl",
+            "inclusive",
+            "promotion",
+            "promotions",
+            "opening",
+            "hours",
+            "hello@savers.mu",
+            "savers.mu",
+            "supermarket",
+            "while stocks last",
+            "terms",
+            "conditions",
+
+            "mon",
+            "monday",
+            "tue",
+            "tuesday",
+            "wed",
+            "wednesday",
+            "thu",
+            "thursday",
+            "fri",
+            "friday",
+            "sat",
+            "saturday",
+            "sun",
+            "sunday",
+
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+
+            "from",
+            "to"
+        ]
+
+        for noise in noise_words:
+
+            if noise in lower:
+                return True
+
+        return False
+
+    # =========================================================
+    # CHECK PRODUCT TEXT
+    # =========================================================
+
+    def looks_like_product_text(self, text):
+
+        if not text:
+            return False
+
+        text = text.strip()
+
+        if self.is_noise(text):
+            return False
+
+        if self.is_price(text):
+            return False
+
+        # Product text should contain letters.
+        letters = re.findall(
+            r"[A-Za-zÀ-ÿ]",
             text
         )
 
-        return text.strip()
+        if len(letters) < 3:
+            return False
 
-    # ---------------------------------------------------------
-    # OCR WORD EXTRACTION
-    # ---------------------------------------------------------
+        # Reject isolated OCR symbols.
+        if text in [
+            ">",
+            "<",
+            "/",
+            "-",
+            "_",
+            "|",
+            ":"
+        ]:
+            return False
 
-    def extract_words(self, image):
+        return True
+
+    # =========================================================
+    # CLEAN PRODUCT NAME
+    # =========================================================
+
+    def clean_product_name(self, words):
+
+        words = sorted(
+            words,
+            key=lambda item: (
+                item["y"],
+                item["x"]
+            )
+        )
+
+        result = []
+
+        for word in words:
+
+            text = word["text"].strip()
+
+            if not text:
+                continue
+
+            if self.is_noise(text):
+                continue
+
+            if self.is_price(text):
+                continue
+
+            if not self.looks_like_product_text(text):
+                continue
+
+            result.append(text)
+
+        # Remove immediately repeated OCR words.
+        cleaned = []
+
+        for word in result:
+
+            if not cleaned:
+
+                cleaned.append(word)
+                continue
+
+            if (
+                word.lower()
+                == cleaned[-1].lower()
+            ):
+
+                continue
+
+            cleaned.append(word)
+
+        name = " ".join(cleaned)
+
+        # Remove leading OCR punctuation.
+        name = re.sub(
+            r"^[^\w]+",
+            "",
+            name
+        )
+
+        # Remove trailing OCR punctuation.
+        name = re.sub(
+            r"[^\w)]+$",
+            "",
+            name
+        )
+
+        # Remove repeated spaces.
+        name = re.sub(
+            r"\s+",
+            " ",
+            name
+        )
+
+        return name.strip()
+
+    # =========================================================
+    # OCR ONE COLUMN
+    # =========================================================
+
+    def process_column(
+        self,
+        image,
+        x_start,
+        x_end,
+        page_number
+    ):
+
+        column = image.crop(
+            (
+                x_start,
+                0,
+                x_end,
+                image.height
+            )
+        )
 
         data = pytesseract.image_to_data(
-            image,
-            output_type=pytesseract.Output.DICT
+            column,
+            config="--psm 11",
+            output_type=Output.DICT
         )
 
         words = []
 
-        total = len(
-            data["text"]
-        )
-
-        for i in range(total):
+        for i in range(
+            len(data["text"])
+        ):
 
             text = data["text"][i].strip()
 
@@ -155,10 +497,7 @@ class SaversExtractor(BaseScraper):
                     data["conf"][i]
                 )
 
-            except (
-                ValueError,
-                TypeError
-            ):
+            except Exception:
 
                 continue
 
@@ -166,39 +505,27 @@ class SaversExtractor(BaseScraper):
                 continue
 
             words.append({
-
                 "text": text,
-
-                "x": int(
-                    data["left"][i]
-                ),
-
-                "y": int(
-                    data["top"][i]
-                ),
-
-                "width": int(
-                    data["width"][i]
-                ),
-
-                "height": int(
-                    data["height"][i]
-                ),
-
+                "x": data["left"][i],
+                "y": data["top"][i],
+                "w": data["width"][i],
+                "h": data["height"][i],
                 "confidence": confidence
             })
 
-        return words
-
-    # ---------------------------------------------------------
-    # FIND PRICE CANDIDATES
-    # ---------------------------------------------------------
-
-    def find_prices(self, words):
+        # =====================================================
+        # FIND PRICE CANDIDATES
+        # =====================================================
 
         prices = []
 
         for word in words:
+
+            if not self.is_price(
+                word["text"]
+            ):
+
+                continue
 
             value = self.parse_price(
                 word["text"]
@@ -207,347 +534,289 @@ class SaversExtractor(BaseScraper):
             if value is None:
                 continue
 
-            if value <= 0:
-                continue
-
-            if value > 100000:
-                continue
-
             prices.append({
-
-                "value": value,
-
-                "x": word["x"],
-
-                "y": word["y"],
-
-                "width": word["width"],
-
-                "height": word["height"]
+                **word,
+                "value": value
             })
 
-        return prices
+        prices.sort(
+            key=lambda item: (
+                item["y"],
+                item["x"]
+            )
+        )
 
-    # ---------------------------------------------------------
-    # FIND PRICE PAIRS
-    # ---------------------------------------------------------
+        products = []
 
-    def find_price_pairs(self, prices):
+        # =====================================================
+        # MATCH PRICE TO PRODUCT NAME
+        # =====================================================
 
-        pairs = []
+        for price_index, price in enumerate(prices):
 
-        for current in prices:
+            current_price = price["value"]
 
-            for old in prices:
+            price_x = price["x"]
+            price_y = price["y"]
 
-                # Same price candidate.
-                if current is old:
+            # -------------------------------------------------
+            # Find the next price below this price.
+            # -------------------------------------------------
+
+            next_price_y = None
+
+            for other_index, other_price in enumerate(prices):
+
+                if other_index <= price_index:
                     continue
 
-                # Old price must be greater.
-                if old["value"] <= current["value"]:
+                if other_price["y"] > price_y:
+
+                    next_price_y = other_price["y"]
+                    break
+
+            # -------------------------------------------------
+            # Find product words below the price.
+            # -------------------------------------------------
+
+            name_words = []
+
+            for word in words:
+
+                if word is price:
                     continue
+
+                word_x = word["x"]
+                word_y = word["y"]
+
+                vertical_distance = (
+                    word_y - price_y
+                )
+
+                # Product name must be below price.
+                if vertical_distance < 15:
+                    continue
+
+                # Allow multiple lines of product names.
+                if vertical_distance > 190:
+                    continue
+
+                # Stop when next price is reached.
+                if (
+                    next_price_y is not None
+                    and word_y >= next_price_y
+                ):
+
+                    continue
+
+                if self.is_price(
+                    word["text"]
+                ):
+
+                    continue
+
+                if not self.looks_like_product_text(
+                    word["text"]
+                ):
+
+                    continue
+
+                # -------------------------------------------------
+                # Horizontal proximity.
+                #
+                # Increased from 125 to 170 because some
+                # legitimate product names extend beyond the
+                # price position.
+                # -------------------------------------------------
+
+                word_center = (
+                    word_x
+                    + word["w"] / 2
+                )
+
+                price_center = (
+                    price_x
+                    + price["w"] / 2
+                )
+
+                horizontal_distance = abs(
+                    word_center
+                    - price_center
+                )
+
+                if horizontal_distance > 170:
+                    continue
+
+                name_words.append(word)
+
+            name = self.clean_product_name(
+                name_words
+            )
+
+            # -------------------------------------------------
+            # Reject bad OCR.
+            # -------------------------------------------------
+
+            if not name:
+                continue
+
+            if len(name) < 4:
+                continue
+
+            letter_count = len(
+                re.findall(
+                    r"[A-Za-zÀ-ÿ]",
+                    name
+                )
+            )
+
+            if letter_count < 4:
+                continue
+
+            # -------------------------------------------------
+            # Reject obvious brochure headings.
+            # -------------------------------------------------
+
+            lower_name = name.lower()
+
+            bad_name_patterns = [
+                "promotion",
+                "opening hours",
+                "while stocks",
+                "terms conditions",
+                "hello@savers",
+                "from june",
+                "from july",
+                "from august",
+                "from september",
+                "from october",
+                "to july",
+                "to august",
+                "to september",
+                "to october"
+            ]
+
+            if any(
+                pattern in lower_name
+                for pattern in bad_name_patterns
+            ):
+
+                continue
+
+            # -------------------------------------------------
+            # Limit extremely long OCR merges.
+            # -------------------------------------------------
+
+            if len(name) > 120:
+
+                name = name[:120].strip()
+
+            # =================================================
+            # FIND OLD PRICE
+            # =================================================
+
+            old_price = None
+
+            for other_index, other_price in enumerate(prices):
+
+                if other_index == price_index:
+                    continue
+
+                price_center = (
+                    price_x
+                    + price["w"] / 2
+                )
+
+                other_center = (
+                    other_price["x"]
+                    + other_price["w"] / 2
+                )
 
                 x_distance = abs(
-                    old["x"] - current["x"]
+                    other_center
+                    - price_center
                 )
 
                 y_distance = abs(
-                    old["y"] - current["y"]
+                    other_price["y"]
+                    - price_y
                 )
 
-                if (
-                    x_distance <= self.MAX_X_DISTANCE
-                    and
-                    y_distance <= self.MAX_Y_DISTANCE
-                ):
+                if x_distance > 100:
+                    continue
 
-                    discount = (
+                if y_distance > 80:
+                    continue
+
+                candidate = other_price["value"]
+
+                if candidate <= current_price:
+                    continue
+
+                if candidate > current_price * 5:
+                    continue
+
+                old_price = candidate
+                break
+
+            # =================================================
+            # CALCULATE DISCOUNT
+            # =================================================
+
+            discount = None
+            promotion = False
+
+            if old_price is not None:
+
+                discount = round(
+                    (
                         (
-                            old["value"]
-                            - current["value"]
+                            old_price
+                            - current_price
                         )
-                        / old["value"]
-                    ) * 100
+                        / old_price
+                    ) * 100,
+                    2
+                )
 
-                    if discount < self.MIN_DISCOUNT:
-                        continue
+                if 0 < discount <= 90:
 
-                    if discount > self.MAX_DISCOUNT:
-                        continue
+                    promotion = True
 
-                    pairs.append({
+                else:
 
-                        "current": current,
+                    old_price = None
+                    discount = None
 
-                        "old": old,
+            # =================================================
+            # CREATE PRODUCT
+            # =================================================
 
-                        "discount": round(
-                            discount,
-                            2
-                        )
-                    })
-
-        # Remove duplicate price pairs.
-        unique = []
-
-        seen = set()
-
-        for pair in pairs:
-
-            key = (
-
-                pair["current"]["value"],
-
-                pair["current"]["x"],
-
-                pair["current"]["y"],
-
-                pair["old"]["value"],
-
-                pair["old"]["x"],
-
-                pair["old"]["y"]
+            product = Product(
+                product_id=None,
+                name=name,
+                sku=None,
+                price=current_price,
+                old_price=old_price,
+                discount_percent=discount,
+                promotion=promotion,
+                url=None,
+                category=None,
+                source="Savers Brochure",
+                page=page_number
             )
 
-            if key in seen:
-                continue
+            products.append(product)
 
-            seen.add(key)
+        return products
 
-            unique.append(
-                pair
-            )
-
-        return unique
-
-    # ---------------------------------------------------------
-    # GET PRODUCT TEXT
-    # ---------------------------------------------------------
-
-    def get_product_text(
-        self,
-        words,
-        price_pair
-    ):
-
-        current = price_pair[
-            "current"
-        ]
-
-        old = price_pair[
-            "old"
-        ]
-
-        min_x = min(
-            current["x"],
-            old["x"]
-        ) - 500
-
-        max_x = max(
-            current["x"],
-            old["x"]
-        ) + 500
-
-        min_y = min(
-            current["y"],
-            old["y"]
-        ) - 180
-
-        max_y = max(
-            current["y"],
-            old["y"]
-        ) + 80
-
-        nearby_words = []
-
-        for word in words:
-
-            x = word["x"]
-            y = word["y"]
-
-            if x < min_x:
-                continue
-
-            if x > max_x:
-                continue
-
-            if y < min_y:
-                continue
-
-            if y > max_y:
-                continue
-
-            # Ignore current price.
-            if (
-                abs(
-                    x - current["x"]
-                ) < 20
-
-                and
-
-                abs(
-                    y - current["y"]
-                ) < 30
-            ):
-
-                continue
-
-            # Ignore old price.
-            if (
-                abs(
-                    x - old["x"]
-                ) < 20
-
-                and
-
-                abs(
-                    y - old["y"]
-                ) < 30
-            ):
-
-                continue
-
-            nearby_words.append(
-                word
-            )
-
-        # Reading order.
-        nearby_words.sort(
-            key=lambda word: (
-                word["y"],
-                word["x"]
-            )
-        )
-
-        text = " ".join(
-            word["text"]
-            for word in nearby_words
-        )
-
-        return self.clean_text(
-            text
-        )
-
-    # ---------------------------------------------------------
-    # DETECT PROMOTION
-    # ---------------------------------------------------------
-
-    def detect_promotion(
-        self,
-        product_text
-    ):
-
-        text = product_text.upper()
-
-        if "VAT ZERO" in text:
-            return "VAT Zero"
-
-        if "VAT INCL" in text:
-            return "VAT Incl"
-
-        return "Promotion"
-
-    # ---------------------------------------------------------
-    # CLEAN PRODUCT NAME
-    # ---------------------------------------------------------
-
-    def clean_product_name(
-        self,
-        product_text
-    ):
-
-        text = self.clean_text(
-            product_text
-        )
-
-        patterns = [
-            r"VAT ZERO",
-            r"VAT INCL",
-            r"VAT INCLUDED",
-            r"PROMOTION",
-            r"PROMO"
-        ]
-
-        for pattern in patterns:
-
-            text = re.sub(
-                pattern,
-                "",
-                text,
-                flags=re.IGNORECASE
-            )
-
-        text = re.sub(
-            r"\s+",
-            " ",
-            text
-        )
-
-        return text.strip(
-            " -:|"
-        )
-
-    # ---------------------------------------------------------
-    # VALIDATE PRODUCT NAME
-    # ---------------------------------------------------------
-
-    def valid_product_name(
-        self,
-        name
-    ):
-
-        if not name:
-            return False
-
-        name = name.strip()
-
-        if len(name) < 3:
-            return False
-
-        # Reject names consisting only of numbers.
-        if re.fullmatch(
-            r"[\d\s.,]+",
-            name
-        ):
-            return False
-
-        return True
-
-    # ---------------------------------------------------------
-    # REMOVE DUPLICATES
-    # ---------------------------------------------------------
-
-    def remove_duplicates(
-        self,
-        products
-    ):
-
-        unique = {}
-
-        for product in products:
-
-            key = (
-                product.name.lower().strip(),
-                product.price,
-                product.old_price,
-                product.page
-            )
-
-            if key not in unique:
-                unique[key] = product
-
-        return list(
-            unique.values()
-        )
-
-    # ---------------------------------------------------------
-    # PROCESS ONE PAGE
-    # ---------------------------------------------------------
+    # =========================================================
+    # PROCESS PAGE
+    # =========================================================
 
     def process_page(
         self,
-        document,
+        page,
         page_number
     ):
 
@@ -556,16 +825,12 @@ class SaversExtractor(BaseScraper):
             f"{page_number}..."
         )
 
-        page = document[
-            page_number - 1
-        ]
-
-        # Render PDF page as an image.
         pixmap = page.get_pixmap(
             matrix=pymupdf.Matrix(
                 2,
                 2
-            )
+            ),
+            alpha=False
         )
 
         image = Image.frombytes(
@@ -577,186 +842,84 @@ class SaversExtractor(BaseScraper):
             pixmap.samples
         )
 
-        # Run OCR.
-        words = self.extract_words(
-            image
-        )
+        page_products = []
 
-        if not words:
+        # Our OCR coordinate measurements were based
+        # on a 1248 px wide page.
+        scale_x = image.width / 1248
 
-            print(
-                "No OCR words found."
+        for x_start, x_end in self.COLUMN_RANGES:
+
+            real_start = int(
+                x_start * scale_x
             )
 
-            return []
-
-        # Find prices.
-        prices = self.find_prices(
-            words
-        )
-
-        if not prices:
-
-            print(
-                "No price candidates found."
+            real_end = int(
+                x_end * scale_x
             )
 
-            return []
-
-        # Find current/old price pairs.
-        pairs = self.find_price_pairs(
-            prices
-        )
-
-        print(
-            f"Found {len(pairs)} "
-            f"candidates"
-        )
-
-        products = []
-
-        for pair in pairs:
-
-            product_text = (
-                self.get_product_text(
-                    words,
-                    pair
-                )
+            products = self.process_column(
+                image,
+                real_start,
+                real_end,
+                page_number
             )
 
-            product_name = (
-                self.clean_product_name(
-                    product_text
-                )
+            page_products.extend(
+                products
             )
 
-            if not self.valid_product_name(
-                product_name
-            ):
+        return page_products
 
-                continue
-
-            promotion = (
-                self.detect_promotion(
-                    product_text
-                )
-            )
-
-            product = Product(
-
-                product_id=None,
-
-                name=product_name,
-
-                sku=None,
-
-                price=pair[
-                    "current"
-                ]["value"],
-
-                old_price=pair[
-                    "old"
-                ]["value"],
-
-                discount_percent=pair[
-                    "discount"
-                ],
-
-                promotion=promotion,
-
-                url=None,
-
-                category=None,
-
-                source="Savers Brochure",
-
-                page=page_number
-            )
-
-            products.append(
-                product
-            )
-
-        return products
-
-    # ---------------------------------------------------------
-    # MAIN PLUGIN METHOD
-    # ---------------------------------------------------------
+    # =========================================================
+    # MAIN EXTRACTION
+    # =========================================================
 
     def extract_products(
         self,
         response=None
     ):
 
-        # Make sure PDF exists.
-        if not self.PDF_FILE.exists():
-
-            raise FileNotFoundError(
-                f"Savers brochure not found: "
-                f"{self.PDF_FILE}"
-            )
-
-        # Make sure Tesseract exists.
-        if not Path(
-            self.TESSERACT_PATH
-        ).exists():
-
-            raise FileNotFoundError(
-                f"Tesseract not found at: "
-                f"{self.TESSERACT_PATH}"
-            )
-
-        print(
-            "\nOpening Savers brochure..."
-        )
+        self.download_brochure()
 
         document = pymupdf.open(
-            self.PDF_FILE
-        )
-
-        total_pages = len(
-            document
-        )
-
-        print(
-            f"Total pages: "
-            f"{total_pages}"
+            self.PDF_PATH
         )
 
         all_products = []
 
-        # Process every page.
+        print(
+            f"\nSavers brochure contains "
+            f"{len(document)} pages."
+        )
+
         for page_number in range(
-            1,
-            total_pages + 1
+            len(document)
         ):
 
-            page_products = (
-                self.process_page(
-                    document,
-                    page_number
-                )
+            page = document[
+                page_number
+            ]
+
+            products = self.process_page(
+                page,
+                page_number + 1
+            )
+
+            print(
+                f"Found "
+                f"{len(products)} "
+                f"possible products."
             )
 
             all_products.extend(
-                page_products
+                products
             )
 
         document.close()
 
-        # Remove duplicates.
-        all_products = (
-            self.remove_duplicates(
-                all_products
-            )
-        )
-
         print(
-            "\nSavers extraction complete."
-        )
-
-        print(
-            f"Unique products: "
+            f"\nTotal products extracted: "
             f"{len(all_products)}"
         )
 

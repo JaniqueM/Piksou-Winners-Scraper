@@ -1,36 +1,15 @@
 from engine.scraper import ScraperEngine
-
 from scrapers_plugins.savers_scraper import SaversExtractor
-
 from exporters.csv_exporter import CSVExporter
 
 
-# ---------------------------------------------------------
-# SAVERS PLUGIN
-# ---------------------------------------------------------
-
 extractor = SaversExtractor()
-
-
-# ---------------------------------------------------------
-# ENGINE
-# ---------------------------------------------------------
 
 engine = ScraperEngine(
     extractor=extractor
 )
 
-
-# ---------------------------------------------------------
-# RUN
-# ---------------------------------------------------------
-
 products = engine.run()
-
-
-# ---------------------------------------------------------
-# EXPORT
-# ---------------------------------------------------------
 
 exporter = CSVExporter()
 
