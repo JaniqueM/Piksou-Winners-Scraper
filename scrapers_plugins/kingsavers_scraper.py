@@ -1,14 +1,10 @@
 # King Savers brochure scraper.
-#
-# This is an independent PikSou plugin.
-#
+
 # The generic engine does NOT know:
 # 1. how the King Savers PDF works
 # 2. how prices are formatted
-# 3. how promotions are identified
-#
+# 3. how promotions are identifies
 # This plugin handles all of that itself.
-
 
 import re
 from pathlib import Path
@@ -26,10 +22,7 @@ class KingSaversExtractor(BaseScraper):
     # Therefore the generic HTTP Fetcher is not required.
     requires_fetcher = False
 
-    # ---------------------------------------------------------
     # CONFIGURATION
-    # ---------------------------------------------------------
-
     BROCHURE_URL = (
         "https://www.king-savers.com/"
         "wp-content/uploads/2026/07/"
@@ -42,10 +35,7 @@ class KingSaversExtractor(BaseScraper):
         DATA_DIR / "kingsavers_brochure.pdf"
     )
 
-    # ---------------------------------------------------------
     # DOWNLOAD BROCHURE
-    # ---------------------------------------------------------
-
     def download_brochure(self):
 
         self.DATA_DIR.mkdir(
@@ -77,10 +67,7 @@ class KingSaversExtractor(BaseScraper):
             f"{self.BROCHURE_PATH}"
         )
 
-    # ---------------------------------------------------------
     # READ PDF
-    # ---------------------------------------------------------
-
     def extract_pages(self):
 
         print(
@@ -118,10 +105,7 @@ class KingSaversExtractor(BaseScraper):
 
         return pages
 
-    # ---------------------------------------------------------
     # PRICE DETECTION
-    # ---------------------------------------------------------
-
     def is_price(self, line):
 
         return re.match(
@@ -130,10 +114,7 @@ class KingSaversExtractor(BaseScraper):
             re.IGNORECASE
         ) is not None
 
-    # ---------------------------------------------------------
     # GET PRICE
-    # ---------------------------------------------------------
-
     def get_price(self, line):
 
         match = re.match(
@@ -150,10 +131,7 @@ class KingSaversExtractor(BaseScraper):
 
         return None
 
-    # ---------------------------------------------------------
     # IGNORE UNWANTED LINES
-    # ---------------------------------------------------------
-
     def is_ignored_line(self, line):
 
         ignored_patterns = [
@@ -196,10 +174,7 @@ class KingSaversExtractor(BaseScraper):
 
         return False
 
-    # ---------------------------------------------------------
     # CLEAN PRODUCT NAME
-    # ---------------------------------------------------------
-
     def clean_product_name(self, lines):
 
         cleaned = []
@@ -220,10 +195,7 @@ class KingSaversExtractor(BaseScraper):
             cleaned
         )
 
-    # ---------------------------------------------------------
     # EXTRACT PROMOTIONS FROM PAGE
-    # ---------------------------------------------------------
-
     def extract_promotions_from_page(
         self,
         page_number,
@@ -252,10 +224,7 @@ class KingSaversExtractor(BaseScraper):
                 i += 1
                 continue
 
-            # -------------------------------------------------
             # PRICE FOUND
-            # -------------------------------------------------
-
             if self.is_price(line):
 
                 current_price = self.get_price(
@@ -389,10 +358,7 @@ class KingSaversExtractor(BaseScraper):
             unique.values()
         )
 
-    # ---------------------------------------------------------
     # MAIN PLUGIN METHOD
-    # ---------------------------------------------------------
-
     def extract_products(
         self,
         response=None

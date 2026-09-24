@@ -1,7 +1,6 @@
 # Core scraping engine responsible for running
 # independent retailer scrapers and collecting products.
 
-
 class ScraperEngine:
 
     def __init__(self, fetcher=None, config=None, extractor=None):
@@ -21,10 +20,7 @@ class ScraperEngine:
         # Keeps record of products already collected.
         self.seen_product_ids = set()
 
-    # ---------------------------------------------------------
     # WEB FETCHING
-    # ---------------------------------------------------------
-
     def fetch_page(self, url):
         """
         Fetch a webpage using the configured Fetcher.
@@ -37,10 +33,7 @@ class ScraperEngine:
 
         return self.fetcher.get(url)
 
-    # ---------------------------------------------------------
     # URL BUILDING
-    # ---------------------------------------------------------
-
     def build_page_url(self, category_path, page):
         """
         Builds the URL for a specific category and page.
@@ -56,11 +49,8 @@ class ScraperEngine:
             f"{category_path}"
             f"{self.config.page_url_template.format(page=page)}"
         )
-
-    # ---------------------------------------------------------
+    
     # PRODUCT STORAGE
-    # ---------------------------------------------------------
-
     def add_products(self, products):
         """
         Adds products while preventing duplicates.
@@ -102,10 +92,7 @@ class ScraperEngine:
             # Store product.
             self.products.append(product)
 
-    # ---------------------------------------------------------
     # WEB CATEGORY SCRAPING
-    # ---------------------------------------------------------
-
     def scrape_category(self, category_path):
         """
         Scrapes all pages within one website category.
@@ -156,10 +143,7 @@ class ScraperEngine:
 
             page += 1
 
-    # ---------------------------------------------------------
     # WEB SCRAPER
-    # ---------------------------------------------------------
-
     def run_web_extractor(self):
         """
         Runs a web-based scraper across configured categories.
@@ -183,10 +167,7 @@ class ScraperEngine:
 
             self.scrape_category(category_path)
 
-    # ---------------------------------------------------------
     # BROCHURE / OCR SCRAPER
-    # ---------------------------------------------------------
-
     def run_brochure_extractor(self):
         """
         Runs a brochure/OCR/API scraper.
@@ -202,10 +183,7 @@ class ScraperEngine:
             f"\nExtractor returned {len(products)} products."
         )
 
-    # ---------------------------------------------------------
     # MAIN ENGINE
-    # ---------------------------------------------------------
-
     def run(self):
         """
         Runs the selected retailer scraper.

@@ -1,10 +1,8 @@
 # Website-specific scraper for Winners Mauritius.
-#
 # This plugin handles:
 # 1. Winners HTML
 # 2. Winners selectors
 # 3. Product extraction
-#
 # The generic ScraperEngine handles:
 # 1. Fetching pages
 # 2. Categories
@@ -24,10 +22,7 @@ class WinnersExtractor(BaseScraper):
     # Winners is a website-based scraper.
     requires_fetcher = True
 
-    # ---------------------------------------------------------
     # MAIN EXTRACTION METHOD
-    # ---------------------------------------------------------
-
     def extract_products(self, response):
 
         # Parse the HTML response.
@@ -46,18 +41,12 @@ class WinnersExtractor(BaseScraper):
         # Process every product card.
         for card in product_cards:
 
-            # -------------------------------------------------
             # PRODUCT ID
-            # -------------------------------------------------
-
             product_id = card.get(
                 "data-productid"
             )
 
-            # -------------------------------------------------
             # PRODUCT NAME + URL
-            # -------------------------------------------------
-
             name_element = card.select_one(
                 ".product-title a"
             )
@@ -88,10 +77,7 @@ class WinnersExtractor(BaseScraper):
                 name = None
                 product_url = None
 
-            # -------------------------------------------------
             # SKU
-            # -------------------------------------------------
-
             sku_element = card.select_one(
                 ".sku"
             )
@@ -106,10 +92,7 @@ class WinnersExtractor(BaseScraper):
 
                 sku = None
 
-            # -------------------------------------------------
             # OLD PRICE
-            # -------------------------------------------------
-
             old_price_element = card.select_one(
                 ".old-price"
             )
@@ -126,10 +109,7 @@ class WinnersExtractor(BaseScraper):
 
                 old_price = None
 
-            # -------------------------------------------------
             # CURRENT PRICE
-            # -------------------------------------------------
-
             price_element = card.select_one(
                 ".actual-price"
             )
@@ -146,10 +126,7 @@ class WinnersExtractor(BaseScraper):
 
                 price = None
 
-            # -------------------------------------------------
             # DISCOUNT
-            # -------------------------------------------------
-
             discount_percent = None
 
             try:
@@ -191,10 +168,7 @@ class WinnersExtractor(BaseScraper):
 
                 discount_percent = None
 
-            # -------------------------------------------------
             # PRODUCT OBJECT
-            # -------------------------------------------------
-
             product = Product(
 
                 product_id=product_id,

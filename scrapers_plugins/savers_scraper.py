@@ -52,10 +52,7 @@ class SaversExtractor(BaseScraper):
             self.TESSERACT_PATH
         )
 
-    # =========================================================
     # DOWNLOAD BROCHURE
-    # =========================================================
-
     def download_brochure(self):
 
         print("\nChecking Savers website for brochure...")
@@ -193,10 +190,7 @@ class SaversExtractor(BaseScraper):
             f"{self.PDF_PATH}"
         )
 
-    # =========================================================
     # PRICE DETECTION
-    # =========================================================
-
     def parse_price(self, text):
 
         if not text:
@@ -269,10 +263,7 @@ class SaversExtractor(BaseScraper):
             is not None
         )
 
-    # =========================================================
     # IGNORE BROCHURE / OCR NOISE
-    # =========================================================
-
     def is_noise(self, text):
 
         if not text:
@@ -335,10 +326,7 @@ class SaversExtractor(BaseScraper):
 
         return False
 
-    # =========================================================
     # CHECK PRODUCT TEXT
-    # =========================================================
-
     def looks_like_product_text(self, text):
 
         if not text:
@@ -375,10 +363,7 @@ class SaversExtractor(BaseScraper):
 
         return True
 
-    # =========================================================
     # CLEAN PRODUCT NAME
-    # =========================================================
-
     def clean_product_name(self, words):
 
         words = sorted(
@@ -453,10 +438,7 @@ class SaversExtractor(BaseScraper):
 
         return name.strip()
 
-    # =========================================================
     # OCR ONE COLUMN
-    # =========================================================
-
     def process_column(
         self,
         image,
@@ -513,10 +495,7 @@ class SaversExtractor(BaseScraper):
                 "confidence": confidence
             })
 
-        # =====================================================
         # FIND PRICE CANDIDATES
-        # =====================================================
-
         prices = []
 
         for word in words:
@@ -548,10 +527,7 @@ class SaversExtractor(BaseScraper):
 
         products = []
 
-        # =====================================================
         # MATCH PRICE TO PRODUCT NAME
-        # =====================================================
-
         for price_index, price in enumerate(prices):
 
             current_price = price["value"]
@@ -559,10 +535,7 @@ class SaversExtractor(BaseScraper):
             price_x = price["x"]
             price_y = price["y"]
 
-            # -------------------------------------------------
             # Find the next price below this price.
-            # -------------------------------------------------
-
             next_price_y = None
 
             for other_index, other_price in enumerate(prices):
@@ -575,10 +548,7 @@ class SaversExtractor(BaseScraper):
                     next_price_y = other_price["y"]
                     break
 
-            # -------------------------------------------------
             # Find product words below the price.
-            # -------------------------------------------------
-
             name_words = []
 
             for word in words:
@@ -621,13 +591,9 @@ class SaversExtractor(BaseScraper):
 
                     continue
 
-                # -------------------------------------------------
                 # Horizontal proximity.
-                #
                 # Increased from 125 to 170 because some
-                # legitimate product names extend beyond the
-                # price position.
-                # -------------------------------------------------
+                # legitimate product names extend beyond price position.
 
                 word_center = (
                     word_x
@@ -653,10 +619,7 @@ class SaversExtractor(BaseScraper):
                 name_words
             )
 
-            # -------------------------------------------------
             # Reject bad OCR.
-            # -------------------------------------------------
-
             if not name:
                 continue
 
@@ -673,10 +636,7 @@ class SaversExtractor(BaseScraper):
             if letter_count < 4:
                 continue
 
-            # -------------------------------------------------
             # Reject obvious brochure headings.
-            # -------------------------------------------------
-
             lower_name = name.lower()
 
             bad_name_patterns = [
@@ -703,18 +663,12 @@ class SaversExtractor(BaseScraper):
 
                 continue
 
-            # -------------------------------------------------
             # Limit extremely long OCR merges.
-            # -------------------------------------------------
-
             if len(name) > 120:
 
                 name = name[:120].strip()
 
-            # =================================================
             # FIND OLD PRICE
-            # =================================================
-
             old_price = None
 
             for other_index, other_price in enumerate(prices):
@@ -759,10 +713,7 @@ class SaversExtractor(BaseScraper):
                 old_price = candidate
                 break
 
-            # =================================================
             # CALCULATE DISCOUNT
-            # =================================================
-
             discount = None
             promotion = False
 
@@ -788,10 +739,7 @@ class SaversExtractor(BaseScraper):
                     old_price = None
                     discount = None
 
-            # =================================================
             # CREATE PRODUCT
-            # =================================================
-
             product = Product(
                 product_id=None,
                 name=name,
@@ -810,10 +758,7 @@ class SaversExtractor(BaseScraper):
 
         return products
 
-    # =========================================================
     # PROCESS PAGE
-    # =========================================================
-
     def process_page(
         self,
         page,
@@ -871,10 +816,7 @@ class SaversExtractor(BaseScraper):
 
         return page_products
 
-    # =========================================================
     # MAIN EXTRACTION
-    # =========================================================
-
     def extract_products(
         self,
         response=None

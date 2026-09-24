@@ -8,11 +8,7 @@ from scrapers_plugins.winners_scraper import WinnersExtractor
 
 from exporters.csv_exporter import CSVExporter
 
-
-# ---------------------------------------------------------
 # WINNERS CONFIGURATION
-# ---------------------------------------------------------
-
 config = ScraperConfig(
 
     base_url="https://www.winners.mu",
@@ -30,11 +26,7 @@ config = ScraperConfig(
     max_pages=5
 )
 
-
-# ---------------------------------------------------------
 # FETCHER
-# ---------------------------------------------------------
-
 fetcher = Fetcher(
 
     headers={
@@ -51,18 +43,10 @@ fetcher = Fetcher(
     timeout=30
 )
 
-
-# ---------------------------------------------------------
 # WINNERS PLUGIN
-# ---------------------------------------------------------
-
 extractor = WinnersExtractor()
 
-
-# ---------------------------------------------------------
 # ENGINE
-# ---------------------------------------------------------
-
 engine = ScraperEngine(
 
     fetcher=fetcher,
@@ -72,18 +56,11 @@ engine = ScraperEngine(
     extractor=extractor
 )
 
-
-# ---------------------------------------------------------
 # RUN
-# ---------------------------------------------------------
-
 products = engine.run()
 
 
-# ---------------------------------------------------------
 # EXPORT
-# ---------------------------------------------------------
-
 exporter = CSVExporter()
 
 exporter.export(
