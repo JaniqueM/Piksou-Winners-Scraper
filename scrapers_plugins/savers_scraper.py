@@ -1,15 +1,13 @@
-# Savers brochure/OCR extractor.
+# Savers brochure/OCR scraper.
 #
 # This is an independent PikSou plugin.
 #
 # The generic engine does NOT handle:
-# - Savers PDF
-# - OCR
-# - Tesseract
-# - price detection
-# - product detection
-#
-# This plugin handles all of those things itself.
+# 1. Savers PDF
+# 2. OCR
+# 3. Tesseract
+# 4. price detection
+# 5. product detection
 #
 # The plugin returns standardized Product objects
 # to the generic ScraperEngine.
@@ -23,14 +21,13 @@ import pytesseract
 
 from PIL import Image
 
-from extractors.base_extractor import BaseExtractor
+from scrapers_plugins.base_scraper import BaseScraper
 from models.product import Product
 
 
-class SaversExtractor(BaseExtractor):
+class SaversExtractor(BaseScraper):
 
     # Savers manages its own PDF and OCR.
-    # Therefore it does not need the generic HTTP Fetcher.
     requires_fetcher = False
 
     # ---------------------------------------------------------
@@ -97,13 +94,11 @@ class SaversExtractor(BaseExtractor):
             return None
 
         try:
-
             return float(
                 match.group(0)
             )
 
         except ValueError:
-
             return None
 
     # ---------------------------------------------------------
@@ -171,19 +166,25 @@ class SaversExtractor(BaseExtractor):
                 continue
 
             words.append({
+
                 "text": text,
+
                 "x": int(
                     data["left"][i]
                 ),
+
                 "y": int(
                     data["top"][i]
                 ),
+
                 "width": int(
                     data["width"][i]
                 ),
+
                 "height": int(
                     data["height"][i]
                 ),
+
                 "confidence": confidence
             })
 
@@ -213,10 +214,15 @@ class SaversExtractor(BaseExtractor):
                 continue
 
             prices.append({
+
                 "value": value,
+
                 "x": word["x"],
+
                 "y": word["y"],
+
                 "width": word["width"],
+
                 "height": word["height"]
             })
 
@@ -251,11 +257,9 @@ class SaversExtractor(BaseExtractor):
                 )
 
                 if (
-                    x_distance
-                    <= self.MAX_X_DISTANCE
+                    x_distance <= self.MAX_X_DISTANCE
                     and
-                    y_distance
-                    <= self.MAX_Y_DISTANCE
+                    y_distance <= self.MAX_Y_DISTANCE
                 ):
 
                     discount = (
@@ -266,21 +270,18 @@ class SaversExtractor(BaseExtractor):
                         / old["value"]
                     ) * 100
 
-                    if (
-                        discount
-                        < self.MIN_DISCOUNT
-                    ):
+                    if discount < self.MIN_DISCOUNT:
                         continue
 
-                    if (
-                        discount
-                        > self.MAX_DISCOUNT
-                    ):
+                    if discount > self.MAX_DISCOUNT:
                         continue
 
                     pairs.append({
+
                         "current": current,
+
                         "old": old,
+
                         "discount": round(
                             discount,
                             2
@@ -295,11 +296,17 @@ class SaversExtractor(BaseExtractor):
         for pair in pairs:
 
             key = (
+
                 pair["current"]["value"],
+
                 pair["current"]["x"],
+
                 pair["current"]["y"],
+
                 pair["old"]["value"],
+
                 pair["old"]["x"],
+
                 pair["old"]["y"]
             )
 
@@ -371,28 +378,34 @@ class SaversExtractor(BaseExtractor):
             if y > max_y:
                 continue
 
-            # Ignore the current price.
+            # Ignore current price.
             if (
                 abs(
                     x - current["x"]
                 ) < 20
+
                 and
+
                 abs(
                     y - current["y"]
                 ) < 30
             ):
+
                 continue
 
-            # Ignore the old price.
+            # Ignore old price.
             if (
                 abs(
                     x - old["x"]
                 ) < 20
+
                 and
+
                 abs(
                     y - old["y"]
                 ) < 30
             ):
+
                 continue
 
             nearby_words.append(
@@ -428,11 +441,9 @@ class SaversExtractor(BaseExtractor):
         text = product_text.upper()
 
         if "VAT ZERO" in text:
-
             return "VAT Zero"
 
         if "VAT INCL" in text:
-
             return "VAT Incl"
 
         return "Promotion"
@@ -524,7 +535,6 @@ class SaversExtractor(BaseExtractor):
             )
 
             if key not in unique:
-
                 unique[key] = product
 
         return list(
@@ -623,6 +633,7 @@ class SaversExtractor(BaseExtractor):
             if not self.valid_product_name(
                 product_name
             ):
+
                 continue
 
             promotion = (
@@ -677,7 +688,7 @@ class SaversExtractor(BaseExtractor):
         response=None
     ):
 
-        # Make sure the PDF exists.
+        # Make sure PDF exists.
         if not self.PDF_FILE.exists():
 
             raise FileNotFoundError(
